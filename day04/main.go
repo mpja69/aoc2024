@@ -17,8 +17,8 @@ func main() {
 	str = strings.Trim(str, " \n")
 	lines := strings.Split(str, "\n")
 
-	res := part1(lines)
-	fmt.Println("Part 1 (2613):", res)
+	fmt.Println("Part 1 (18, 2613):", part1(lines))
+	fmt.Println("Part 2 (9, 1905):", part2(lines))
 
 }
 
@@ -31,8 +31,56 @@ type rcdir struct {
 	dir rc
 }
 
+func part2(grid []string) int {
+	res := 0
+	// Check all VALID positions, i.e the ones where the squares overlap
+	R := len(grid) - 1
+	C := len(grid[0]) - 1
+	for r := 1; r < R; r++ {
+		for c := 1; c < C; c++ {
+			if grid[r][c] == 'A' {
+				res += checkAllCorners(grid, rc{r, c})
+			}
+		}
+	}
+	return res
+}
+
+func checkAllCorners(grid []string, pos rc) int {
+	patterns := []string{"MMSS", "SMMS", "SSMM", "MSSM"}
+	for _, pattern := range patterns {
+		if checkCorners(grid, pos, pattern) {
+			return 1
+		}
+	}
+	return 0
+}
+
+func checkCorners(grid []string, pos rc, pattern string) bool {
+	offsets := []rc{{-1, -1}, {-1, 1}, {1, 1}, {1, -1}}
+	for i, off := range offsets {
+		if grid[pos.r+off.r][pos.c+off.c] != pattern[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func part1(grid []string) int {
 	res := make(map[rcdir]bool)
+
+	// Check all positions
+	R := len(grid)
+	C := len(grid[0])
+	for r := 0; r < R; r++ {
+		for c := 0; c < C; c++ {
+			checkAllDir(grid, rc{r, c}, res)
+		}
+	}
+	return len(res)
+}
+
+func checkAllDir(grid []string, pos rc, res map[rcdir]bool) {
 	dirs := []rc{
 		{-1, 0},
 		{1, 0},
@@ -43,19 +91,6 @@ func part1(grid []string) int {
 		{1, 1},
 		{1, -1},
 	}
-
-	// Check all positions
-	R := len(grid)
-	C := len(grid[0])
-	for r := 0; r < R; r++ {
-		for c := 0; c < C; c++ {
-			checkAllDir(grid, rc{r, c}, dirs, res)
-		}
-	}
-	return len(res)
-}
-
-func checkAllDir(grid []string, pos rc, dirs []rc, res map[rcdir]bool) {
 	for _, dir := range dirs {
 		if checkDir(grid, pos, dir) {
 			res[rcdir{pos: pos, dir: dir}] = true
@@ -68,7 +103,7 @@ func checkDir(grid []string, pos, dir rc) bool {
 	C := len(grid[0])
 	r := pos.r
 	c := pos.c
-	// i := 0
+	pattern := "XMAS"
 
 	for i := 0; i < 4; i++ {
 		// Check boundries
@@ -76,7 +111,7 @@ func checkDir(grid []string, pos, dir rc) bool {
 			return false
 		}
 		// Check string
-		if "XMAS"[i] != grid[r][c] {
+		if pattern[i] != grid[r][c] {
 			return false
 		}
 		// Move 1 step, (in the given direction)
@@ -86,6 +121,7 @@ func checkDir(grid []string, pos, dir rc) bool {
 	return true
 }
 
+// --------------------- utility func ----------------------
 func printMap(grid []string, sol map[rcdir]bool) {
 	R := len(grid)
 	C := len(grid[0])
