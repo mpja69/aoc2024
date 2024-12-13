@@ -26,7 +26,7 @@ type rc struct {
 	r int
 	c int
 }
-type rcdir struct {
+type key struct {
 	pos rc
 	dir rc
 }
@@ -39,14 +39,14 @@ func part2(grid []string) int {
 	for r := 1; r < R; r++ {
 		for c := 1; c < C; c++ {
 			if grid[r][c] == 'A' {
-				res += checkAllCorners(grid, rc{r, c})
+				res += checkAllPatterns(grid, rc{r, c})
 			}
 		}
 	}
 	return res
 }
 
-func checkAllCorners(grid []string, pos rc) int {
+func checkAllPatterns(grid []string, pos rc) int {
 	patterns := []string{"MMSS", "SMMS", "SSMM", "MSSM"}
 	for _, pattern := range patterns {
 		if checkCorners(grid, pos, pattern) {
@@ -67,20 +67,20 @@ func checkCorners(grid []string, pos rc, pattern string) bool {
 }
 
 func part1(grid []string) int {
-	res := make(map[rcdir]bool)
+	res := make(map[key]bool)
 
 	// Check all positions
 	R := len(grid)
 	C := len(grid[0])
 	for r := 0; r < R; r++ {
 		for c := 0; c < C; c++ {
-			checkAllDir(grid, rc{r, c}, res)
+			checkAllDirections(grid, rc{r, c}, res)
 		}
 	}
 	return len(res)
 }
 
-func checkAllDir(grid []string, pos rc, res map[rcdir]bool) {
+func checkAllDirections(grid []string, pos rc, res map[key]bool) {
 	dirs := []rc{
 		{-1, 0},
 		{1, 0},
@@ -92,13 +92,13 @@ func checkAllDir(grid []string, pos rc, res map[rcdir]bool) {
 		{1, -1},
 	}
 	for _, dir := range dirs {
-		if checkDir(grid, pos, dir) {
-			res[rcdir{pos: pos, dir: dir}] = true
+		if checkPattern(grid, pos, dir) {
+			res[key{pos: pos, dir: dir}] = true
 		}
 	}
 }
 
-func checkDir(grid []string, pos, dir rc) bool {
+func checkPattern(grid []string, pos, dir rc) bool {
 	R := len(grid)
 	C := len(grid[0])
 	r := pos.r
@@ -122,7 +122,7 @@ func checkDir(grid []string, pos, dir rc) bool {
 }
 
 // --------------------- utility func ----------------------
-func printMap(grid []string, sol map[rcdir]bool) {
+func printMap(grid []string, sol map[key]bool) {
 	R := len(grid)
 	C := len(grid[0])
 	res := make([][]byte, R)
