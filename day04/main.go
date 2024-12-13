@@ -22,13 +22,13 @@ func main() {
 
 }
 
-type rc struct {
+type Pos struct {
 	r int
 	c int
 }
-type key struct {
-	pos rc
-	dir rc
+type Path struct {
+	pos Pos
+	dir Pos
 }
 
 func part2(grid []string) int {
@@ -39,14 +39,14 @@ func part2(grid []string) int {
 	for r := 1; r < R; r++ {
 		for c := 1; c < C; c++ {
 			if grid[r][c] == 'A' {
-				res += checkAllPatterns(grid, rc{r, c})
+				res += checkAllPatterns(grid, Pos{r, c})
 			}
 		}
 	}
 	return res
 }
 
-func checkAllPatterns(grid []string, pos rc) int {
+func checkAllPatterns(grid []string, pos Pos) int {
 	patterns := []string{"MMSS", "SMMS", "SSMM", "MSSM"}
 	for _, pattern := range patterns {
 		if checkCorners(grid, pos, pattern) {
@@ -56,8 +56,8 @@ func checkAllPatterns(grid []string, pos rc) int {
 	return 0
 }
 
-func checkCorners(grid []string, pos rc, pattern string) bool {
-	offsets := []rc{{-1, -1}, {-1, 1}, {1, 1}, {1, -1}}
+func checkCorners(grid []string, pos Pos, pattern string) bool {
+	offsets := []Pos{{-1, -1}, {-1, 1}, {1, 1}, {1, -1}}
 	for i, off := range offsets {
 		if grid[pos.r+off.r][pos.c+off.c] != pattern[i] {
 			return false
@@ -67,21 +67,21 @@ func checkCorners(grid []string, pos rc, pattern string) bool {
 }
 
 func part1(grid []string) int {
-	res := make(map[key]bool)
+	res := make(map[Path]bool)
 
 	// Check all positions
 	R := len(grid)
 	C := len(grid[0])
 	for r := 0; r < R; r++ {
 		for c := 0; c < C; c++ {
-			checkAllDirections(grid, rc{r, c}, res)
+			checkAllDirections(grid, Pos{r, c}, res)
 		}
 	}
 	return len(res)
 }
 
-func checkAllDirections(grid []string, pos rc, res map[key]bool) {
-	dirs := []rc{
+func checkAllDirections(grid []string, pos Pos, res map[Path]bool) {
+	dirs := []Pos{
 		{-1, 0},
 		{1, 0},
 		{0, 1},
@@ -93,12 +93,12 @@ func checkAllDirections(grid []string, pos rc, res map[key]bool) {
 	}
 	for _, dir := range dirs {
 		if checkPattern(grid, pos, dir) {
-			res[key{pos: pos, dir: dir}] = true
+			res[Path{pos: pos, dir: dir}] = true
 		}
 	}
 }
 
-func checkPattern(grid []string, pos, dir rc) bool {
+func checkPattern(grid []string, pos, dir Pos) bool {
 	R := len(grid)
 	C := len(grid[0])
 	r := pos.r
@@ -122,7 +122,7 @@ func checkPattern(grid []string, pos, dir rc) bool {
 }
 
 // --------------------- utility func ----------------------
-func printMap(grid []string, sol map[key]bool) {
+func printMap(grid []string, solutions map[Path]bool) {
 	R := len(grid)
 	C := len(grid[0])
 	res := make([][]byte, R)
@@ -130,7 +130,7 @@ func printMap(grid []string, sol map[key]bool) {
 		res[r] = make([]byte, C)
 	}
 
-	for s := range sol {
+	for s := range solutions {
 		println("Sol: ")
 		for r := range res {
 			for c := range res[r] {
