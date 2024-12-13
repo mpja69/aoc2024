@@ -78,8 +78,8 @@ func p1() int {
 	if err != nil {
 		log.Fatal(err)
 	}
-	positions := walkUntilOffTheGrid(start)
-	return len(positions)
+	visitedPositions := walkUntilOffTheGrid(start)
+	return len(visitedPositions)
 }
 
 func findStart() (Path, error) {
@@ -111,17 +111,18 @@ func walkUntilOffTheGrid(start Path) map[Pos]bool {
 
 // --------------------------- PART 2 ------------------------
 func p2() int {
+	// >> Beginning is same as PART 1
 	start, err := findStart()
 	if err != nil {
 		log.Fatal(err)
 	}
-	positionsToPlaceObstace := walkUntilOffTheGrid(start)
+	visitedPositions := walkUntilOffTheGrid(start)
+	// << End of PART 1
 
 	nbrLoops := 0
-	// Go over path list
-	for pos := range positionsToPlaceObstace {
+	for pos := range visitedPositions {
 		setObstacleOnGridPos(pos)
-		if findLoop(start) {
+		if checkLoop(start) {
 			nbrLoops++
 		}
 		removeObstacleFromGridPos(pos)
@@ -129,7 +130,7 @@ func p2() int {
 	return nbrLoops
 }
 
-func findLoop(start Path) bool {
+func checkLoop(start Path) bool {
 	path := start
 	traveled := make(map[Path]bool)
 	add(traveled, path)
