@@ -11,8 +11,7 @@ import (
 
 // ------------------------ Globals -------------------------
 var (
-	R, C       int                                       // Boundries of grid
-	directions = []Vec{{-1, 0}, {0, 1}, {1, 0}, {0, -1}} // 0..3 directions. ONLY turn right
+	R, C int // Boundries of grid
 )
 
 type Vec struct {
@@ -108,7 +107,7 @@ func findStart(grid [][]byte) (Path, Set) {
 			}
 			dir := strings.IndexByte("^>v<", grid[r][c])
 			if dir > -1 {
-				start = Path{Vec{r, c}, directions[dir]}
+				start = Path{Vec{r, c}, []Vec{{-1, 0}, {0, 1}, {1, 0}, {0, -1}}[dir]}
 			}
 		}
 	}
