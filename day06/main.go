@@ -14,46 +14,36 @@ var (
 	R, C int // Boundries of grid
 )
 
-type Vec struct {
+type Vec2 struct {
 	r int
 	c int
 }
 
-func (p Vec) getPos() Vec {
-	return p
+type Step struct {
+	pos Vec2
+	dir Vec2
 }
 
-type Path struct {
-	pos Vec
-	dir Vec
-}
-
-func (p Path) getPos() Vec {
-	return p.pos
-}
-func (p *Path) peek() Vec {
+func (p *Step) peek() Vec2 {
 	r := p.pos.r + p.dir.r
 	c := p.pos.c + p.dir.c
-	return Vec{r, c}
+	return Vec2{r, c}
 }
-func (p *Path) moveForward() {
+func (p *Step) moveForward() {
 	p.pos.r += p.dir.r
 	p.pos.c += p.dir.c
 }
-func (p *Path) inside() bool {
+func (p *Step) inside() bool {
 	pp := p.peek()
 	return !(pp.r < 0 || pp.r >= R || pp.c < 0 || pp.c >= R)
 }
 
-func (p *Path) turnRight() {
+func (p *Step) turnRight() {
 	p.dir.r, p.dir.c = p.dir.c, -p.dir.r
 }
 
 // ----------------------- Maps/Sets ------------------------
-type Item interface {
-	getPos() Vec
-}
-
+type Item interface{}
 type Set map[Item]bool
 
 func (s Set) add(i Item) {
@@ -67,12 +57,15 @@ func (s Set) delete(i Item) {
 }
 
 // ----------------------- Generics ------------------------
-// func has[T comparable](set map[T]bool, item T) bool {
-// 	return set[item]
-// }
-// func add[T comparable](set map[T]bool, item T) {
-// 	set[item] = true
-// }
+func has[T comparable](set map[T]bool, item T) bool {
+	return set[item]
+}
+func add[T comparable](set map[T]bool, item T) {
+	set[item] = true
+}
+func del[T comparable](set map[T]bool, item T) {
+	set[item] = false
+}
 
 func main() {
 	data, err := os.ReadFile("d.txt")
@@ -88,67 +81,68 @@ func main() {
 	start, obstacles := findStart(grid)
 	t := time.Now()
 	visited := walkUntilOffTheGrid(start, obstacles)
-	fmt.Println("Part 1 (41, 4559):", p1(visited))
-	fmt.Println("Part 2 (6, 1604):", p2(start, obstacles, visited))
+	fmt.Println("Part 1 (41, 4559):", len(visited))
+	fmt.Println("Part 2 (6, 1604):", p2(obstacles, visited))
 	fmt.Printf("Millis: %d\n", time.Since(t).Milliseconds())
 }
 
-func p1(visited Set) int {
-	return len(visited)
+// --------------------------- PART 2 ------------------------
+func p2(obstacles Set, visitedList []Step) int {
+	nbrLoops := 0
+	isLoop := false
+	start := visitedList[0]
+	for _, newStart := range visitedList[1:] {
+		newObstacle := newStart.pos
+		obstacles.add(newObstacle)
+		if isLoop = checkLoop(start, obstacles); isLoop {
+			nbrLoops++
+		}
+		obstacles.delete(newObstacle)
+		start = newStart
+	}
+	return nbrLoops
 }
 
-func findStart(grid [][]byte) (Path, Set) {
-	start := Path{}
+func findStart(grid [][]byte) (Step, Set) {
+	start := Step{}
 	obstacles := make(Set)
 	for r := range R {
 		for c := range C {
 			if grid[r][c] == '#' {
-				obstacles.add(Vec{r, c})
+				obstacles.add(Vec2{r, c})
 			}
 			dir := strings.IndexByte("^>v<", grid[r][c])
 			if dir > -1 {
-				start = Path{Vec{r, c}, []Vec{{-1, 0}, {0, 1}, {1, 0}, {0, -1}}[dir]}
+				start = Step{Vec2{r, c}, []Vec2{{-1, 0}, {0, 1}, {1, 0}, {0, -1}}[dir]}
 			}
 		}
 	}
 	return start, obstacles
 }
 
-func walkUntilOffTheGrid(start Path, obstacles Set) Set {
+func walkUntilOffTheGrid(start Step, obstacles Set) []Step {
+	path := start
+	list := []Step{start}
+	visited := make(Set)
+	visited.add(start.pos)
+	for path.inside() {
+		if obstacles.has(path.peek()) {
+			path.turnRight()
+			continue
+		}
+		path.moveForward()
+		if visited.has(path.pos) == false {
+			visited.add(path.pos)
+			list = append(list, path)
+		}
+	}
+	return list
+}
+
+func checkLoop(start Step, obstacles Set) bool {
 	path := start
 	visited := make(Set)
-	visited.add(path.pos)
-	for path.inside() {
-		if obstacles.has(path.peek()) {
-			path.turnRight()
-			continue
-		}
-		path.moveForward()
-		visited.add(path.pos)
-	}
-	return visited
-}
-
-// --------------------------- PART 2 ------------------------
-func p2(start Path, obstacles Set, visited Set) int {
-	nbrLoops := 0
-	for cell := range visited {
-		obstacles.add(cell)
-		// NOTE:	start kan få vara "sista/senaste path:en innan hinder"...
-		//			För stegen innan är ju redan testade!
-		//				=> Behöver fixa detta i checkloop + att ändra start här!!
-		if checkLoop(start, obstacles) {
-			nbrLoops++
-		}
-		obstacles.delete(cell)
-	}
-	return nbrLoops
-}
-
-func checkLoop(start Path, obstacles Set) bool {
-	path := start
-	traveled := make(Set)
-	traveled.add(path)
+	visited.add(path) // 23 ggr:w
 
 	for path.inside() {
 		if obstacles.has(path.peek()) {
@@ -157,10 +151,10 @@ func checkLoop(start Path, obstacles Set) bool {
 		}
 		path.moveForward()
 
-		if traveled.has(path) {
+		if visited.has(path) {
 			return true
 		}
-		traveled.add(path)
+		visited.add(path)
 	}
 	return false
 }
