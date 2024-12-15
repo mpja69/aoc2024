@@ -1,7 +1,7 @@
 # Advent of Code 2024 in Go
 
 ## Kind of problems/solutions
-1. ???
+1. Lists with numbers
 2. Increasing/Decreasing rows
 3. Find word int text. (Lexer or Regex)
 4. Grid. Find pattern in 2D
