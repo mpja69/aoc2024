@@ -6,6 +6,13 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
+)
+
+// ------------------------ Globals -------------------------
+var (
+	R, C       int                                       // Boundries of grid
+	directions = []Pos{{-1, 0}, {0, 1}, {1, 0}, {0, -1}} // 0..3 directions. ONLY turn right
 )
 
 type Pos struct {
@@ -13,139 +20,148 @@ type Pos struct {
 	c int
 }
 
+func (p Pos) pos() Pos {
+	return p
+}
+
 type Path struct {
 	Pos
 	d int
 }
 
-func (p *Path) next() byte {
+func (p Path) pos() Pos {
+	return p.Pos
+}
+func (p *Path) moveForward() {
 	p.r += directions[p.d].r
 	p.c += directions[p.d].c
-	return grid[p.r][p.c]
 }
-func (p *Path) peek() byte {
+func (p *Path) peek() Pos {
 	r := p.r + directions[p.d].r
 	c := p.c + directions[p.d].c
-	if r < 0 || r >= R || c < 0 || c >= R {
-		return 0
-	}
-	return grid[r][c]
+	return Pos{r, c}
+}
+func (p *Path) inside() bool {
+	r := p.r + directions[p.d].r
+	c := p.c + directions[p.d].c
+	return !(r < 0 || r >= R || c < 0 || c >= R)
 }
 func (p *Path) turnRight() {
 	p.d = (p.d + 1) % len(directions)
 }
 
 // ----------------------- Maps/Sets ------------------------
-func has[T comparable](set map[T]bool, item T) bool {
-	return set[item]
-}
-func add[T comparable](set map[T]bool, item T) {
-	set[item] = true
+type Item interface {
+	pos() Pos
 }
 
-// ------------------------ Globals -------------------------
-var (
-	R, C       int                                       // Boundries of grid
-	grid       [][]byte                                  // the grid
-	directions = []Pos{{-1, 0}, {0, 1}, {1, 0}, {0, -1}} // 0..3 directions. ONLY turn right
-)
+type Set map[Item]bool
 
-// ------------- Instead of writing comments...--------------
-func setObstacleOnGridPos(p Pos) {
-	grid[p.r][p.c] = '#'
+func (s Set) add(i Item) {
+	s[i] = true
 }
-func removeObstacleFromGridPos(p Pos) {
-	grid[p.r][p.c] = '.'
+func (s Set) has(i Item) bool {
+	return s[i]
 }
+func (s Set) delete(i Item) {
+	s[i] = false
+}
+
+// ----------------------- Generics ------------------------
+// func has[T comparable](set map[T]bool, item T) bool {
+// 	return set[item]
+// }
+// func add[T comparable](set map[T]bool, item T) {
+// 	set[item] = true
+// }
 
 func main() {
-	data, err := os.ReadFile("s.txt")
+	data, err := os.ReadFile("d.txt")
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
 	data = bytes.Trim(data, " \n")
-	grid = bytes.Split(data, []byte{'\n'})
+	grid := bytes.Split(data, []byte{'\n'})
 
 	R = len(grid)
 	C = len(grid[0])
 
-	fmt.Println("Part 1 (41, 4559):", p1())
-	fmt.Println("Part 2 (6, 1604):", p2())
+	start, obstacles := findStart(grid)
+	t := time.Now()
+	fmt.Println("Part 1 (41, 4559):", p1(start, obstacles))
+	fmt.Println("Part 2 (6, 1604):", p2(start, obstacles))
+	fmt.Printf("Millis: %d\n", time.Since(t).Milliseconds())
 }
 
-func p1() int {
-	start, err := findStart()
-	if err != nil {
-		log.Fatal(err)
-	}
-	visitedPositions := walkUntilOffTheGrid(start)
+func p1(start Path, obstacles Set) int {
+	visitedPositions := walkUntilOffTheGrid(start, obstacles)
 	return len(visitedPositions)
 }
 
-func findStart() (Path, error) {
+func findStart(grid [][]byte) (Path, Set) {
+	start := Path{}
+	obstacles := make(Set)
 	for r := range R {
 		for c := range C {
+			if grid[r][c] == '#' {
+				obstacles.add(Pos{r, c})
+			}
 			dir := strings.IndexByte("^>v<", grid[r][c])
 			if dir > -1 {
-				return Path{Pos{r, c}, dir}, nil
+				start = Path{Pos{r, c}, dir}
 			}
 		}
 	}
-	return Path{}, fmt.Errorf("No Start pos found!")
+	return start, obstacles
 }
 
-func walkUntilOffTheGrid(start Path) map[Pos]bool {
+func walkUntilOffTheGrid(start Path, obstacles Set) Set {
 	path := start
-	visited := make(map[Pos]bool)
-	add(visited, path.Pos)
-	for path.peek() != 0 {
-		if path.peek() == '#' {
+	visited := make(Set)
+	visited.add(path.Pos)
+	for path.inside() {
+		if obstacles.has(path.peek()) {
 			path.turnRight()
 			continue
 		}
-		path.next()
-		add(visited, path.Pos)
+		path.moveForward()
+		visited.add(path.Pos)
 	}
 	return visited
 }
 
 // --------------------------- PART 2 ------------------------
-func p2() int {
-	// >> Beginning is same as PART 1
-	start, err := findStart()
-	if err != nil {
-		log.Fatal(err)
-	}
-	visitedPositions := walkUntilOffTheGrid(start)
-	// << End of PART 1
+func p2(start Path, obstacles Set) int {
+	// Beginning is same as PART 1
+	visitedCells := walkUntilOffTheGrid(start, obstacles)
 
 	nbrLoops := 0
-	for pos := range visitedPositions {
-		setObstacleOnGridPos(pos)
-		if checkLoop(start) {
+	for cell := range visitedCells {
+		obstacles.add(cell)
+		if checkLoop(start, obstacles) {
 			nbrLoops++
 		}
-		removeObstacleFromGridPos(pos)
+		obstacles.delete(cell)
 	}
 	return nbrLoops
 }
 
-func checkLoop(start Path) bool {
+func checkLoop(start Path, obstacles Set) bool {
 	path := start
-	traveled := make(map[Path]bool)
-	add(traveled, path)
+	traveled := make(Set)
+	traveled.add(path)
 
-	for path.peek() != 0 {
-		if path.peek() == '#' {
+	for path.inside() {
+		if obstacles.has(path.peek()) {
 			path.turnRight()
 			continue
 		}
-		path.next()
+		path.moveForward()
 
-		if has(traveled, path) {
+		if traveled.has(path) {
 			return true
 		}
-		add(traveled, path)
+		traveled.add(path)
 	}
 	return false
 }
