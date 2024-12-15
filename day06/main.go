@@ -12,47 +12,47 @@ import (
 // ------------------------ Globals -------------------------
 var (
 	R, C       int                                       // Boundries of grid
-	directions = []Pos{{-1, 0}, {0, 1}, {1, 0}, {0, -1}} // 0..3 directions. ONLY turn right
+	directions = []Vec{{-1, 0}, {0, 1}, {1, 0}, {0, -1}} // 0..3 directions. ONLY turn right
 )
 
-type Pos struct {
+type Vec struct {
 	r int
 	c int
 }
 
-func (p Pos) pos() Pos {
+func (p Vec) getPos() Vec {
 	return p
 }
 
 type Path struct {
-	Pos
-	d int
+	pos Vec
+	dir Vec
 }
 
-func (p Path) pos() Pos {
-	return p.Pos
+func (p Path) getPos() Vec {
+	return p.pos
+}
+func (p *Path) peek() Vec {
+	r := p.pos.r + p.dir.r
+	c := p.pos.c + p.dir.c
+	return Vec{r, c}
 }
 func (p *Path) moveForward() {
-	p.r += directions[p.d].r
-	p.c += directions[p.d].c
-}
-func (p *Path) peek() Pos {
-	r := p.r + directions[p.d].r
-	c := p.c + directions[p.d].c
-	return Pos{r, c}
+	p.pos.r += p.dir.r
+	p.pos.c += p.dir.c
 }
 func (p *Path) inside() bool {
-	r := p.r + directions[p.d].r
-	c := p.c + directions[p.d].c
-	return !(r < 0 || r >= R || c < 0 || c >= R)
+	pp := p.peek()
+	return !(pp.r < 0 || pp.r >= R || pp.c < 0 || pp.c >= R)
 }
+
 func (p *Path) turnRight() {
-	p.d = (p.d + 1) % len(directions)
+	p.dir.r, p.dir.c = p.dir.c, -p.dir.r
 }
 
 // ----------------------- Maps/Sets ------------------------
 type Item interface {
-	pos() Pos
+	getPos() Vec
 }
 
 type Set map[Item]bool
@@ -88,14 +88,14 @@ func main() {
 
 	start, obstacles := findStart(grid)
 	t := time.Now()
-	fmt.Println("Part 1 (41, 4559):", p1(start, obstacles))
-	fmt.Println("Part 2 (6, 1604):", p2(start, obstacles))
+	visited := walkUntilOffTheGrid(start, obstacles)
+	fmt.Println("Part 1 (41, 4559):", p1(visited))
+	fmt.Println("Part 2 (6, 1604):", p2(start, obstacles, visited))
 	fmt.Printf("Millis: %d\n", time.Since(t).Milliseconds())
 }
 
-func p1(start Path, obstacles Set) int {
-	visitedPositions := walkUntilOffTheGrid(start, obstacles)
-	return len(visitedPositions)
+func p1(visited Set) int {
+	return len(visited)
 }
 
 func findStart(grid [][]byte) (Path, Set) {
@@ -104,11 +104,11 @@ func findStart(grid [][]byte) (Path, Set) {
 	for r := range R {
 		for c := range C {
 			if grid[r][c] == '#' {
-				obstacles.add(Pos{r, c})
+				obstacles.add(Vec{r, c})
 			}
 			dir := strings.IndexByte("^>v<", grid[r][c])
 			if dir > -1 {
-				start = Path{Pos{r, c}, dir}
+				start = Path{Vec{r, c}, directions[dir]}
 			}
 		}
 	}
@@ -118,26 +118,26 @@ func findStart(grid [][]byte) (Path, Set) {
 func walkUntilOffTheGrid(start Path, obstacles Set) Set {
 	path := start
 	visited := make(Set)
-	visited.add(path.Pos)
+	visited.add(path.pos)
 	for path.inside() {
 		if obstacles.has(path.peek()) {
 			path.turnRight()
 			continue
 		}
 		path.moveForward()
-		visited.add(path.Pos)
+		visited.add(path.pos)
 	}
 	return visited
 }
 
 // --------------------------- PART 2 ------------------------
-func p2(start Path, obstacles Set) int {
-	// Beginning is same as PART 1
-	visitedCells := walkUntilOffTheGrid(start, obstacles)
-
+func p2(start Path, obstacles Set, visited Set) int {
 	nbrLoops := 0
-	for cell := range visitedCells {
+	for cell := range visited {
 		obstacles.add(cell)
+		// NOTE:	start kan få vara "sista/senaste path:en innan hinder"...
+		//			För stegen innan är ju redan testade!
+		//				=> Behöver fixa detta i checkloop + att ändra start här!!
 		if checkLoop(start, obstacles) {
 			nbrLoops++
 		}
