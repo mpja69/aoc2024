@@ -5,7 +5,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -16,12 +15,17 @@ type Equation struct {
 }
 
 func main() {
-	data, err := os.ReadFile("s.txt")
+	data, err := os.ReadFile("d.txt")
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
 	input := strings.Trim(string(data), " \n")
 	lines := strings.Split(input, "\n")
+	equations := parseEquations(lines)
+	fmt.Println("Part 1 (3749, 4364915411363):", part1(equations))
+}
+
+func parseEquations(lines []string) []Equation {
 	equations := make([]Equation, 0, len(lines))
 	for _, line := range lines {
 		equation := Equation{}
@@ -34,28 +38,51 @@ func main() {
 		}
 		equations = append(equations, equation)
 	}
-	fmt.Println("Part 1 (3749, 4364915411363):", p1(equations))
+	return equations
 }
 
-func p1(equations []Equation) int {
+func part1(equations []Equation) int {
 	res := 0
 	for _, equation := range equations {
-		if isValidEquation(equation) {
+		if isValidEquation(equation.answer, equation.operands) {
 			res += equation.answer
 		}
 	}
 	return res
 }
 
-func isValidEquation(eq Equation) bool {
-	// answers := linearCalcAllCombos(eq.operands)
-	answers := recursiveCalcAllCombos(eq.operands)
-	isValid := slices.Contains(answers, eq.answer)
-	// fmt.Printf("%d:\t%v\t%v\n", eq.answer, isValid, answers)
-	return isValid
+// --------------Third attempt: Recursive solution ---------------------
+func isValidEquation(answer int, op []int) bool {
+	// Base case: Just 1 value
+	if len(op) == 1 {
+		return answer == op[0]
+	}
+
+	// Make sure to make a deep-copy
+	cpy := make([]int, len(op))
+	copy(cpy, op)
+
+	// Case 1: Add and store in "first" place
+	cpy[1] = op[0] + op[1]
+	if isValidEquation(answer, cpy[1:]) {
+		return true
+	}
+
+	// Case 2: Multiply and store in "first" place
+	cpy[1] = op[0] * op[1]
+	return isValidEquation(answer, cpy[1:])
 }
 
-// ------------------------ Linear, Naive approach -------------------------------
+// ---------------------- OLD STUFF BELOW ----------------------------
+
+// func isValidEquation(eq Equation) bool {
+// 	// answers := linearCalcAllCombos(eq.operands)
+// 	answers := recursiveCalcAllCombos(eq.operands)
+// 	isValid := slices.Contains(answers, eq.answer)
+// 	return isValid
+// }
+
+// --------------- First attempt: Linear, Naive approach -------------------------
 func linearCalcAllCombos(operands []int) []int {
 	answers := []int{}
 	nbrBits := len(operands) - 1
@@ -82,7 +109,7 @@ func calculate(a, b int, op int) int {
 	}
 }
 
-// ------------------------ Recursive approach---------------------------------
+// ------------------ Second attempt: Recursive approach -------------------------
 func recursiveCalcAllCombos(operands []int) []int {
 	answers := []int{}
 	nbrBits := len(operands) - 1
