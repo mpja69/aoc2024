@@ -21,31 +21,35 @@ func main() {
 }
 
 func part1(diskmap string) int {
-	blocks, _, _ := inflateBlocks(diskmap)
+	blocks, _ := inflateBlocks(diskmap)
 	partitionSingleBlocks(blocks)
 	return checkSum(blocks)
 }
 
 func part2(diskmap string) int {
-	blocks, fileSizes, fileIdx := inflateBlocks(diskmap)
-	partitionFiles(blocks, fileSizes, fileIdx)
+	blocks, info := inflateBlocks(diskmap)
+	partitionFiles(blocks, info)
 	return checkSum(blocks)
 }
 
-func inflateBlocks(diskmap string) ([]int, []int, []int) {
-	fileSizes := make([]int, len(diskmap)/2+1)
-	fileIdx := make([]int, len(diskmap)/2+1)
+type fileInfo struct {
+	size int
+	idx  int
+}
+
+func inflateBlocks(diskmap string) ([]int, []fileInfo) {
+	info := make([]fileInfo, len(diskmap)/2+1)
 	blocks := []int{}
 	isFile := true
 	id := 0
 	for _, digit := range diskmap {
 		nbrBlocks := int(digit) - '0'
 		if isFile {
-			fileIdx[id] = len(blocks)
+			info[id].idx = len(blocks)
 			for block := 0; block < nbrBlocks; block++ {
 				blocks = append(blocks, id)
 			}
-			fileSizes[id] = nbrBlocks
+			info[id].size = nbrBlocks
 			id++
 		} else {
 			for block := 0; block < nbrBlocks; block++ {
@@ -54,7 +58,7 @@ func inflateBlocks(diskmap string) ([]int, []int, []int) {
 		}
 		isFile = !isFile
 	}
-	return blocks, fileSizes, fileIdx
+	return blocks, info
 }
 
 func partitionSingleBlocks(b []int) {
@@ -80,16 +84,15 @@ func partitionSingleBlocks(b []int) {
 		b[dst], b[src] = b[src], b[dst]
 	}
 }
-func partitionFiles(blocks []int, sizes []int, indices []int) {
-	// printBlocks(blocks)
-	id := len(sizes) - 1
+func partitionFiles(blocks []int, info []fileInfo) {
+	id := len(info) - 1
 	for id >= 0 {
 		// Always look for free space by starting from the beginning
 		startFree := 0
 
 		// Identify file to move
-		nbrBlocks := sizes[id]
-		idx := indices[id]
+		nbrBlocks := info[id].size
+		idx := info[id].idx
 
 		// Search for a slot big enough
 		for startFree < len(blocks) {
@@ -108,12 +111,12 @@ func partitionFiles(blocks []int, sizes []int, indices []int) {
 					blocks[startFree+i] = id
 					blocks[idx+i] = -1
 				}
+				// Conintue with next file
 				break
 			}
 			// Continue search for a big enough free space
 			startFree = endFree
 		}
-		// printBlocks(blocks)
 		// Continue with next file
 		id--
 	}
