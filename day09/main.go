@@ -8,23 +8,6 @@ import (
 	"strings"
 )
 
-type Block struct {
-	id int
-}
-
-func printBlock(b int) string {
-	if b < 0 {
-		return "."
-	}
-	return strconv.Itoa(b)
-}
-func printBlocks(blocks []int) {
-	for _, b := range blocks {
-		fmt.Printf("%v", printBlock(b))
-	}
-	fmt.Println()
-}
-
 func main() {
 	data, err := os.ReadFile("d.txt")
 	if err != nil {
@@ -147,4 +130,18 @@ func checkSum(blocks []int) int {
 		sum += prod
 	}
 	return sum
+}
+
+// Utility functions
+func printBlock(b int) string {
+	if b < 0 {
+		return "."
+	}
+	return strconv.Itoa(b)
+}
+func printBlocks(blocks []int) {
+	for _, b := range blocks {
+		fmt.Printf("%v", printBlock(b))
+	}
+	fmt.Println()
 }
