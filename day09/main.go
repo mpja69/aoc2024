@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	data, err := os.ReadFile("d.txt")
+	data, err := os.ReadFile("s.txt")
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -61,61 +61,66 @@ func inflateBlocks(diskmap string) ([]int, []fileInfo) {
 	return blocks, info
 }
 
-func partitionSingleBlocks(b []int) {
-	src := len(b) - 1
+func partitionSingleBlocks(blocks []int) {
+	src := len(blocks) - 1
 	dst := 0
 
 	for {
 		// Move forward to next free block
-		for b[dst] >= 0 {
+		for blocks[dst] >= 0 {
 			dst++
 		}
 		//Move beckward to next block (to move)
-		for b[src] < 0 {
+		for blocks[src] < 0 {
 			src--
 		}
 
-		// fmt.Printf("%v\n", b)
+		// printBlocks(b)
 		// If now more blocks to move
 		if dst >= src {
 			return
 		}
-		// Swap blocks
-		b[dst], b[src] = b[src], b[dst]
+
+		// Move block and mark it as "free"
+		blocks[dst] = blocks[src]
+		blocks[src] = -1
 	}
 }
+
 func partitionFiles(blocks []int, info []fileInfo) {
 	id := len(info) - 1
 	for id >= 0 {
 		// Always look for free space by starting from the beginning
-		startFree := 0
+		dstIdx := 0
 
 		// Identify file to move
-		nbrBlocks := info[id].size
-		idx := info[id].idx
+		srcSize := info[id].size
+		srcIdx := info[id].idx
 
 		// Search for a slot big enough
-		for startFree < len(blocks) {
+		for dstIdx < len(blocks) {
 			// Find the start of free space
-			for startFree < len(blocks) && blocks[startFree] >= 0 {
-				startFree++
+			for dstIdx < len(blocks) && blocks[dstIdx] >= 0 {
+				dstIdx++
 			}
 			// Find end of free space
-			endFree := startFree
-			for endFree < len(blocks) && blocks[endFree] < 0 {
-				endFree++
+			dstSize := 0
+			for dstEnd := dstIdx; dstEnd < len(blocks) && blocks[dstEnd] < 0; dstEnd++ {
+				dstSize++
 			}
-			// If file ID can be moved
-			if idx > startFree && endFree-startFree >= nbrBlocks {
-				for i := 0; i < nbrBlocks; i++ {
-					blocks[startFree+i] = id
-					blocks[idx+i] = -1
+
+			if srcIdx > dstIdx && dstSize >= srcSize {
+				// Found free space! Move the file (all the blocks)
+				for i := 0; i < srcSize; i++ {
+					blocks[dstIdx+i] = id
+					blocks[srcIdx+i] = -1
 				}
-				// Conintue with next file
+				// Do the next file
 				break
+			} else {
+				// Free space to small! Jump forward and continue the search
+				dstIdx += dstSize
 			}
-			// Continue search for a big enough free space
-			startFree = endFree
 		}
 		// Continue with next file
 		id--
