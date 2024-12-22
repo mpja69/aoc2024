@@ -33,19 +33,19 @@ type Grid [][]byte
 func part1(grid Grid) int {
 	score := 0
 
-	trailheads := grid.findTrailheads('0')
+	trailheads := grid.findTrailheads()
 	for _, start := range trailheads {
-		s := grid.calcScore(start, '9')
+		s := grid.calcScore(start)
 		score += s
 	}
 	return score
 }
 
-func (g Grid) findTrailheads(start byte) []Pos {
+func (g Grid) findTrailheads() []Pos {
 	trailheads := []Pos{}
 	for r := range R {
 		for c := range C {
-			if g[r][c] == start {
+			if g[r][c] == '0' {
 				trailheads = append(trailheads, Pos{r, c})
 			}
 		}
@@ -54,7 +54,7 @@ func (g Grid) findTrailheads(start byte) []Pos {
 }
 
 // Breadth First search
-func (g Grid) calcScore(start Pos, end byte) int {
+func (g Grid) calcScore(start Pos) int {
 	q := list.New()           // Use a queue for the upcoming steps
 	visited := map[Pos]bool{} // Use a set to avoid duplicate visits
 
@@ -66,26 +66,72 @@ func (g Grid) calcScore(start Pos, end byte) int {
 	for q.Len() > 0 {
 
 		// Pop the oldest item
-		curr := q.Front().Value.(Pos)
+		pos := q.Front().Value.(Pos)
 		q.Remove(q.Front())
 
 		// Track visited positions in a set
-		if visited[curr] {
+		if visited[pos] {
 			continue
 		}
-		visited[curr] = true
+		visited[pos] = true
 
 		// Have we found an end position?
-		if g[curr.r][curr.c] == end {
+		if g[pos.r][pos.c] == '9' {
 			score++
+			continue
 		}
 
 		// Push all possible neighbours to the queue
-		for _, neighbour := range g.neighbours(curr) {
+		for _, neighbour := range g.neighbours(pos) {
 			q.PushBack(neighbour)
 		}
 	}
 	return score
+}
+
+func part2(grid Grid) int {
+	trails := 0
+	trailheads := grid.findTrailheads()
+	for _, start := range trailheads {
+		s := grid.calcRating(start)
+		trails += s
+	}
+	return trails
+}
+
+// Breadth First search - Part 2
+func (g Grid) calcRating(start Pos) int {
+	q := list.New() // Use a queue for the upcoming steps
+	rating := 0     // The total number of trails
+
+	// Push initial values to the queue
+	q.PushBack(start)
+
+	// Process the queue until it's empty
+	for q.Len() > 0 {
+
+		// Pop the oldest item
+		pos := q.Front().Value.(Pos)
+		q.Remove(q.Front())
+
+		// Skip
+		// tracking
+		// the
+		// visited
+		// positions
+
+		// Have we found a new trail?
+		if g[pos.r][pos.c] == '9' {
+			rating++
+			continue
+		}
+
+		// Push all possible neighbours to the queue
+		for _, neighbour := range g.neighbours(pos) {
+			q.PushBack(neighbour)
+		}
+	}
+	return rating
 }
 
 func (g Grid) neighbours(p Pos) []Pos {
@@ -110,51 +156,39 @@ func (g Grid) neighbours(p Pos) []Pos {
 	return neighbours
 }
 
-func part2(grid Grid) int {
-	trails := 0
-	trailheads := grid.findTrailheads('0')
-	for _, start := range trailheads {
-		s := grid.calcRating(start, '9')
-		trails += s
-	}
-	return trails
-}
-
+// ----------------------- Unnecessary complicated -------------------------
 type Item struct {
 	step int
 	path [10]Pos
 }
 
 // Breadth First search - Part 2
-func (g Grid) calcRating(start Pos, end byte) int {
+func (g Grid) calcRatingOld(start Pos) int {
 	q := list.New()                     // Use a queue for the upcoming steps
-	distinctPaths := map[[10]Pos]bool{} // Save distinct paths
+	distinctPaths := map[[10]Pos]bool{} // Use a map to save distinct paths
 
-	// Initial values
-	curr := Item{}
-	curr.path[0] = start
-	q.PushBack(curr)
+	// Push initial values to the queue
+	q.PushBack(Item{step: 0, path: [10]Pos{start}})
 
-	// Process the queue
+	// Process the queue until it's empty
 	for q.Len() > 0 {
 
 		// Pop the oldest item
 		curr := q.Front().Value.(Item)
 		q.Remove(q.Front())
-
 		pos := curr.path[curr.step]
 
-		// Have we found a new trail to same end?
-		if g[pos.r][pos.c] == end {
+		// Have we found a new trail?
+		if g[pos.r][pos.c] == '9' {
 			distinctPaths[curr.path] = true
-			continue // Not needed? Because we will NOT get any possible neighbours
+			continue
 		}
 
 		// Push all possible neighbours to the queue
 		for _, neighbour := range g.neighbours(pos) {
 			next := Item{}
-			next.step = curr.step + 1
 			copy(next.path[:], curr.path[:])
+			next.step = curr.step + 1
 			next.path[next.step] = neighbour
 			q.PushBack(next)
 		}
