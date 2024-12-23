@@ -15,29 +15,29 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 	input := strings.Trim(string(data), " \n")
-	parts := strings.Split(input, " ")
+	numbers := strings.Split(input, " ")
 
-	numbers := make([]int, len(parts))
-	for i, nbr := range parts {
+	stones := make([]int, len(numbers))
+	for i, nbr := range numbers {
 		num, _ := strconv.Atoi(nbr)
-		numbers[i] = int(num)
+		stones[i] = int(num)
 	}
 
-	fmt.Printf("Part 1: (55321, 200446): %d\n", part1(numbers, 25))
-	fmt.Printf("Part 2: (65601038650482, 238317474993392): %d\n", part2(numbers, 75))
+	fmt.Printf("Part 1: (55321, 200446): %d\n", part1(stones, 25))
+	fmt.Printf("Part 2: (65601038650482, 238317474993392): %d\n", part2(stones, 75))
 }
 
 // ----------------------------- Part 1 - Linear solution using slices ----------------------------------------
-func part1(values []int, steps int) int {
+func part1(stones []int, steps int) int {
 	for range steps {
-		values = applyRules(values)
+		stones = applyRules(stones)
 	}
-	return len(values)
+	return len(stones)
 }
 
-func applyRules(values []int) []int {
+func applyRules(stones []int) []int {
 	res := []int{}
-	for _, val := range values {
+	for _, val := range stones {
 		if val == 0 {
 			res = append(res, 1)
 		} else if length := lenInt(val); length%2 == 0 {
@@ -68,37 +68,38 @@ func divideInt(n int) (a, b int) {
 
 // ----------------------- Part 2 - Recursive solution using length AND Memoisation ---------------------
 type Item struct {
-	val   int
+	stone int
 	steps int
 }
 
 var memo map[Item]int
 
-func part2(values []int, steps int) int {
+func part2(stones []int, steps int) int {
 	memo = make(map[Item]int)
 	res := 0
-	for _, val := range values {
-		res += applyRulesRec(val, steps)
+	for _, stone := range stones {
+		res += applyRulesRec(stone, steps)
 	}
 	return res
 }
 
-func applyRulesRec(val, steps int) int {
-	item := Item{val, steps}
-
-	if res, ok := memo[item]; ok {
-		return res
+func applyRulesRec(stone, steps int) (res int) {
+	item := Item{stone, steps}
+	if _, ok := memo[item]; ok {
+		res = memo[item]
+		return
 	}
 
 	if steps == 0 {
-		memo[item] = 1
-	} else if val == 0 {
-		memo[item] = applyRulesRec(1, steps-1)
-	} else if length := lenInt(val); length%2 == 0 {
-		a, b := divideInt(val)
-		memo[item] = applyRulesRec(a, steps-1) + applyRulesRec(b, steps-1)
+		res = 1
+	} else if stone == 0 {
+		res = applyRulesRec(1, steps-1)
+	} else if length := lenInt(stone); length%2 == 0 {
+		a, b := divideInt(stone)
+		res = applyRulesRec(a, steps-1) + applyRulesRec(b, steps-1)
 	} else {
-		memo[item] = applyRulesRec(2024*val, steps-1)
+		res = applyRulesRec(2024*stone, steps-1)
 	}
-	return memo[item]
+	memo[item] = res
+	return
 }
