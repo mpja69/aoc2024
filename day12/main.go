@@ -106,28 +106,6 @@ func (g Grid) neighbours(p Pos) []Pos {
 	return neighbours
 }
 
-// func (g Grid) numberEdges(p Pos) int {
-// 	edges := 0
-// 	val := g[p.r][p.c]
-//
-// 	// There are 4 potential steps, Up, Left and Right
-// 	dirs := []Pos{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
-// 	for _, n := range dirs {
-// 		r, c := p.r+n.r, p.c+n.c
-// 		// Check out-of-bounds
-// 		if r < 0 || r >= R || c < 0 || c >= C {
-// 			edges++
-// 			continue
-// 		}
-// 		// Check valid different region
-// 		if g[r][c] != val {
-// 			edges++
-// 			continue
-// 		}
-// 	}
-// 	return edges
-// }
-
 // ---------------------- Helper functions --------------------
 func printGrid(g [][]byte) {
 	for r := range R {
