@@ -27,7 +27,7 @@ func main() {
 	fmt.Printf("Part 2: (65601038650482, 238317474993392): %d\n", part2(stones, 75))
 }
 
-// ----------------------------- Part 1 - Linear solution using slices ----------------------------------------
+// -------------------- Part 1 - Linear solution using slices, and counting the length ----------------------------------
 func part1(stones []int, steps int) int {
 	for range steps {
 		stones = applyRules(stones)
@@ -50,6 +50,7 @@ func applyRules(stones []int) []int {
 	return res
 }
 
+// Helper function instead of using strconv.Itoa()
 func lenInt(n int) int {
 	x, i := int(10), 1
 	for x <= n {
@@ -59,6 +60,7 @@ func lenInt(n int) int {
 	return i
 }
 
+// Helper function instead of using strconv.Itoa()
 func divideInt(n int) (a, b int) {
 	half := lenInt(n) / 2
 	a = n / int(math.Pow10(half))
@@ -66,7 +68,7 @@ func divideInt(n int) (a, b int) {
 	return
 }
 
-// ----------------------- Part 2 - Recursive solution using length AND Memoisation ---------------------
+// -------------- Part 2 - Recursive solution NOT using slices, instead only recording length AND use Memoisation --------------
 type Item struct {
 	stone int
 	steps int
