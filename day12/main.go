@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"math"
 	"os"
 )
 
@@ -44,8 +45,8 @@ func part1(g Grid) int {
 			if visited[Pos{r, c}] {
 				continue
 			}
-			Region, area, perimeter := g.findOneRegion(Pos{r, c})
-			maps.Insert(visited, maps.All(Region))
+			region, area, perimeter := g.findOneRegion(Pos{r, c})
+			maps.Insert(visited, maps.All(region))
 			price += area * perimeter
 		}
 	}
@@ -53,7 +54,7 @@ func part1(g Grid) int {
 }
 
 // Breadth First search - Find all positions in a one region
-func (g Grid) findOneRegion(start Pos) (visited map[Pos]bool, area int, perimeter int) {
+func (g Grid) findOneRegion(start Pos) (visited map[Pos]bool, area, perimeter int) {
 	q := list.New()          // Use a queue for the upcoming steps
 	visited = map[Pos]bool{} // Use a set to avoid duplicate visits
 
@@ -119,57 +120,94 @@ func part2(g Grid) int {
 			}
 			region, area, _ := g.findOneRegion(Pos{r, c})
 			maps.Insert(visited, maps.All(region))
-			id := g[r][c]
-			horizontalSides := g.scanRows(region, id)
-			verticalSides := g.scanCols(region, id)
-			perimeter := horizontalSides + verticalSides
-			price += area * perimeter
+
+			// --- Solution where we count the corners ---
+			sides := corners(region)
+			price += area * sides
+
+			// --- Solution where we scan the lines ---
+			// horizontalSides := scanRowsRegion(region)
+			// verticalSides := scanColsRegion(region)
+			// perimeter := horizontalSides + verticalSides
+			// price += area * perimeter
 		}
 	}
 	return price
 }
 
-func (g Grid) scanRows(region map[Pos]bool, id byte) int {
+type F2 struct {
+	r, c float64
+}
+
+func corners(region map[Pos]bool) int {
+	virtualGrid := map[F2]bool{}
+	offsets := []F2{{-0.5, 0.5}, {0.5, 0.5}, {0.5, -0.5}, {-0.5, -0.5}}
+
+	// Create a grid for the virtual corner points
+	for p := range region {
+		for _, o := range offsets {
+			r := float64(p.r) + o.r
+			c := float64(p.c) + o.c
+			virtualGrid[F2{r, c}] = true
+		}
+	}
+
+	corners := 0
+
+	for c := range virtualGrid {
+		b := [4]bool{}
+		for i, o := range offsets {
+			r := int(math.Round(c.r + o.r))
+			c := int(math.Round(c.c + o.c))
+			b[i] = region[Pos{r, c}]
+		}
+
+		if b[0] != b[1] != b[2] != b[3] {
+			corners += 1
+		} else if b == [4]bool{true, false, true, false} || b == [4]bool{false, true, false, true} {
+			corners += 2
+		}
+	}
+	return corners
+}
+
+// ------------------- Scan funcions ---------------------
+func scanRowsRegion(region map[Pos]bool) int {
 	length := 0
 	// Scan each row...
 	for r := range R {
-		top := false
-		bottom := false
+		above := false
+		below := false
 		// ...from left to right
 		for c := range C {
-			if region[Pos{r, c}] == false {
-				top = false
-				bottom = false
+			pos := Pos{r, c}
+
+			// First check if we are in region
+			if region[pos] == false {
+				above = false
+				below = false
 				continue
 			}
-			// Have one above
-			if r > 0 && g[r-1][c] == id {
-				top = false
+
+			// Check for edge above
+			if !region[pos.above()] && !above {
+				length++
 			}
-			// Have one below
-			if r < R-1 && g[r+1][c] == id {
-				bottom = false
+
+			// Check for edge below
+			if !region[pos.below()] && !below {
+				length++
 			}
-			// Have none above
-			if r == 0 || r > 0 && g[r-1][c] != id {
-				if top == false {
-					length++
-					top = true
-				}
-			}
-			// have none below
-			if r == R-1 || r < R-1 && g[r+1][c] != id {
-				if bottom == false {
-					length++
-					bottom = true
-				}
-			}
+
+			// Set flags
+			above = !region[pos.above()]
+			below = !region[pos.below()]
 		}
 	}
 	return length
 }
 
-func (g Grid) scanCols(region map[Pos]bool, id byte) int {
+func scanColsRegion(region map[Pos]bool) int {
 	length := 0
 	// Scan each col...
 	for c := range C {
@@ -177,48 +215,95 @@ func (g Grid) scanCols(region map[Pos]bool, id byte) int {
 		right := false
 		// ...from top to bottom
 		for r := range R {
-			if region[Pos{r, c}] == false {
+			pos := Pos{r, c}
+
+			// First check if we are in region
+			if region[pos] == false {
 				left = false
 				right = false
 				continue
 			}
-			// have one left
-			if c > 0 && g[r][c-1] == id {
-				left = false
+
+			// Check for edge above: I.e. NOT a_square_above AND NOT in_a_ongoing_line_above
+			if !region[pos.left()] && !left {
+				length++
 			}
-			// have one right
-			if c < C-1 && g[r][c+1] == id {
-				right = false
+
+			// Check for edge below
+			if !region[pos.right()] && !right {
+				length++
 			}
-			// have none left
-			if c == 0 || c > 0 && g[r][c-1] != id {
-				if left == false {
-					length++
-					left = true
-				}
-			}
-			// have none right
-			if c == C-1 || c < C-1 && g[r][c+1] != id {
-				if right == false {
-					length++
-					right = true
-				}
-			}
+
+			// Set flags
+			left = !region[pos.left()]
+			right = !region[pos.right()]
 		}
 	}
 	return length
 }
 
 // ---------------------- Helper functions --------------------
-func printGrid(g [][]byte) {
+// --- Grid ---
+func (g Grid) inside(r, c int) bool {
+	return r >= 0 && r <= R-1 && c >= 0 && r <= C-1
+}
+
+func (g Grid) set(pos Pos, ch byte) {
+	if g.inside(pos.r, pos.c) {
+		g[pos.r][pos.c] = ch
+	}
+}
+func (g Grid) printGrid() {
 	for r := range R {
 		for c := range C {
 			fmt.Printf("%c", g[r][c])
 		}
 		fmt.Println()
 	}
+	fmt.Println()
+}
+func regionToGrid(region map[Pos]bool) Grid {
+	grid := [][]byte{}
+	for r := range R {
+		grid = append(grid, []byte{})
+		for c := range C {
+			if region[Pos{r, c}] {
+				grid[r] = append(grid[r], 'x')
+			} else {
+				grid[r] = append(grid[r], '.')
+			}
+		}
+	}
+	return grid
 }
 
-func (p Pos) add(d Pos) Pos {
-	return Pos{p.r + d.r, p.c + d.c}
+// --- Pos ---
+// --- methods ---
+func (p Pos) above() Pos {
+	return above(p)
+}
+func (p Pos) below() Pos {
+	return below(p)
+}
+func (p Pos) left() Pos {
+	return left(p)
+}
+func (p Pos) right() Pos {
+	return right(p)
+}
+
+// --- Functions ---
+type Move func(Pos) Pos
+
+func above(p Pos) Pos {
+	return Pos{p.r - 1, p.c}
+}
+func below(p Pos) Pos {
+	return Pos{p.r + 1, p.c}
+}
+func left(p Pos) Pos {
+	return Pos{p.r, p.c - 1}
+}
+func right(p Pos) Pos {
+	return Pos{p.r, p.c + 1}
 }
