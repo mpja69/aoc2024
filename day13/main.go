@@ -54,19 +54,24 @@ func (m Matrix) mul(v Vector) Vector {
 	}
 }
 
+// Hard coded "Gauss-Jordan elimination" for a 2x2 matrix
 func gaussEliminationSolver(A Matrix, y Vector) (x Vector) {
+
+	// First find the "echelon form", (zeros below the diagonal)
 	s := A[1][0] / A[0][0]
 	// R2 - s*R1 -> R2
 	A[1][0] = 0
 	A[1][1] -= s * A[0][1]
 	y[1] -= s * y[0]
 
+	// Continue with reducing the rows above the diagonal, ("reduced row echelon form")
 	s = A[0][1] / A[1][1]
 	// R1 - s*R2 -> R1
 	A[0][0] -= s * A[1][0]
 	A[0][1] = 0
 	y[0] -= s * y[1]
 
+	// Continue with "Back substitution" to find the answer
 	x = make(Vector, 2)
 	x[1] = y[1] / A[1][1]
 	x[0] = y[0] / A[0][0]
