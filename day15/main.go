@@ -5,6 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
+
+	"github.com/NimbleMarkets/ntcharts/canvas"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func main() {
@@ -13,114 +18,130 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 	input := bytes.Trim(data, " \n")
-	parts := bytes.Split(input, []byte{'\n', '\n'})
-	grid = bytes.Split(parts[0], []byte{'\n'})
-	moves := parts[1]
+	parts := strings.Split(string(input), "\n\n")
 
-	R = len(grid)
-	C = len(grid[0])
-
-	fmt.Printf("P1: %d\n", p1(moves))
+	f, err := tea.LogToFile("debug.log", "debug")
+	if err != nil {
+		fmt.Println("fatal:", err)
+		os.Exit(1)
+	}
+	defer f.Close()
+	fmt.Printf("P1: %d\n", p1(parts[0], parts[1]))
 
 	// small: 2028
-	// large: 10092
+	// large:	10092
+	// data:	1514333
 }
 
-var (
-	R, C int
-	grid Grid
-)
+type model struct {
+	canvas   canvas.Model
+	defStyle lipgloss.Style
+	hlStyle  lipgloss.Style
+	currPos  P
+	moves    *strings.Reader
+}
 
-type P struct{ r, c int }
-type Grid [][]byte
+type P = canvas.Point // Use type ALIAS, instead of type DEFINITION
 
-func p1(moves []byte) int {
-	p := start()
-	for _, m := range moves {
-		dir, ch := peek(p, m)
-		switch ch {
-		case '.':
-			p = move(p, dir)
-		case 'O':
-			boxes, ok := checkBoxes(p, dir)
-			if ok {
-				pushBoxes(p, dir, boxes)
-				p = move(p, dir)
-			}
+func p1(grid string, moves string) int {
+	m := &model{}
+
+	// Styles
+	m.hlStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("1")).
+		Background(lipgloss.Color("2"))
+	m.defStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+
+	// Init the canvas
+	lines := strings.Split(string(grid), "\n")
+	m.canvas = canvas.New(len(lines[0]), len(lines), canvas.WithViewWidth(60), canvas.WithViewHeight(30))
+	m.canvas.SetLinesWithStyle(lines, m.defStyle)
+	m.canvas.Focus()
+
+	// Get start pos and the input stream
+	m.currPos = m.start()
+	m.canvas.SetCellStyle(m.currPos, m.hlStyle)
+	m.moves = strings.NewReader(moves)
+
+	// Run Bubble Tea
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		os.Exit(1)
+	}
+
+	// Calculate and return the result
+	return m.sumGPS()
+}
+
+func (m model) p1Update(p P, chDir byte) P {
+	dir, ch := m.peek(p, chDir)
+	switch ch {
+	case '.':
+		p = m.move(p, dir)
+	case 'O':
+		boxes, ok := m.checkBoxes(p, dir)
+		if ok {
+			m.pushBoxes(p, dir, boxes)
+			p = m.move(p, dir)
 		}
 	}
-	return sumGPS()
+	return p
 }
 
-func peek(p P, m byte) (d P, c byte) {
-	move := map[byte]P{'^': {-1, 0}, '>': {0, 1}, 'v': {1, 0}, '<': {0, -1}}
-	d = move[m]
-	n := p
-	n.r, n.c = p.r+d.r, p.c+d.c
-	c = grid[n.r][n.c]
+func (m model) peek(p P, move byte) (dir P, ch byte) {
+	movements := map[byte]P{'^': {0, -1}, '>': {1, 0}, 'v': {0, 1}, '<': {-1, 0}}
+	dir = movements[move]
+	n := p.Add(dir)
+	ch = byte(m.canvas.Cell(n).Rune)
 	return
 }
 
-func move(p, d P) P {
-	n := p
-	n.r, n.c = p.r+d.r, p.c+d.c
-	grid[n.r][n.c] = '@'
-	grid[p.r][p.c] = '.'
-	return n
+func (m model) move(pos, dir P) P {
+	m.canvas.SetCell(pos, canvas.NewCellWithStyle('.', m.defStyle))
+	pos = pos.Add(dir)
+	m.canvas.SetCell(pos, canvas.NewCellWithStyle('@', m.hlStyle))
+	return pos
 }
 
-func checkBoxes(p, d P) (boxes int, ok bool) {
-	boxes = 0
+func (m model) checkBoxes(pos, dir P) (boxes int, ok bool) {
 	for {
-		p.r, p.c = p.r+d.r, p.c+d.c
-		if grid[p.r][p.c] != 'O' {
+		pos = pos.Add(dir)
+		if m.canvas.Cell(pos).Rune != 'O' {
 			break
 		}
 		boxes++
 	}
-	ok = grid[p.r][p.c] == '.'
+	ok = m.canvas.Cell(pos).Rune == '.'
 	return
 }
 
-func pushBoxes(p, d P, boxes int) {
-	r, c := p.r, p.c
-	r, c = r+d.r, c+d.c
-	grid[r][c] = '.'
+func (m model) pushBoxes(p, d P, boxes int) {
+	p = p.Add(d)
+	m.canvas.SetCell(p, canvas.NewCellWithStyle('.', m.defStyle))
 	for i := 0; i < boxes; i++ {
-		r, c = r+d.r, c+d.c
-		grid[r][c] = 'O'
+		p = p.Add(d)
+		m.canvas.SetCell(p, canvas.NewCellWithStyle('O', m.defStyle))
 	}
 }
 
-func start() P {
-	for r := range R {
-		for c := range C {
-			if grid[r][c] == '@' {
-				return P{r, c}
+func (m model) start() P {
+	for y := range m.canvas.Height() {
+		for x := range m.canvas.Width() {
+			if m.canvas.Cell(P{x, y}).Rune == '@' {
+				return P{x, y}
 			}
 		}
 	}
 	return P{}
 }
 
-func sumGPS() int {
+func (m model) sumGPS() int {
 	sum := 0
-	for r := range R {
-		for c := range C {
-			if grid[r][c] == 'O' {
-				sum += 100*r + c
+	for y := range m.canvas.Height() {
+		for x := range m.canvas.Width() {
+			if m.canvas.Cell(P{x, y}).Rune == 'O' {
+				sum += 100*y + x
 			}
 		}
 	}
 	return sum
-}
-
-func printGrid() {
-	for r := range R {
-		for c := range C {
-			fmt.Printf("%c", grid[r][c])
-		}
-		fmt.Println()
-	}
-	fmt.Println()
 }
