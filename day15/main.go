@@ -26,11 +26,12 @@ func main() {
 		os.Exit(1)
 	}
 	defer f.Close()
-	fmt.Printf("P1: %d\n", p1(parts[0], parts[1]))
+	// fmt.Printf("P1: %d\n", p1(parts[0], parts[1]))
+	fmt.Printf("Part 2: %d\n", p2(parts[0], parts[1]))
 
 	// small: 2028
-	// large:	10092
-	// data:	1514333
+	// large:	10092, 9021
+	// data:	1514333, 1528453
 }
 
 type model struct {
@@ -40,6 +41,14 @@ type model struct {
 	currPos  P
 	moves    *strings.Reader
 }
+
+var anotherStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("15")).
+	BorderTop(true).
+	BorderRight(true).
+	BorderBottom(true).
+	BorderLeft(true)
 
 type P = canvas.Point // Use type ALIAS, instead of type DEFINITION
 
@@ -56,7 +65,6 @@ func p1(grid string, moves string) int {
 	lines := strings.Split(string(grid), "\n")
 	m.canvas = canvas.New(len(lines[0]), len(lines), canvas.WithViewWidth(60), canvas.WithViewHeight(30))
 	m.canvas.SetLinesWithStyle(lines, m.defStyle)
-	m.canvas.Focus()
 
 	// Get start pos and the input stream
 	m.currPos = m.start()

@@ -12,6 +12,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.canvas.SetStyle(m.defStyle)
 	once := false
 	all := false
 	switch msg := msg.(type) {
@@ -23,6 +24,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			once = true
 		case "a":
 			all = true
+		case "right", "left", "up", "down":
+			move := map[string]byte{"right": '>', "left": '<', "up": '^', "down": 'v'}[msg.String()]
+			m.currPos = m.p2Update(m.currPos, move)
 		}
 	}
 
@@ -34,7 +38,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, tea.Quit
 		}
-		m.currPos = m.p1Update(m.currPos, move)
+		m.currPos = m.p2Update(m.currPos, move)
+		// m.currPos = m.p1Update(m.currPos, move)
 	}
 
 	// Scroll the canvas if the "y-pos" gets 8 rows from the top or bottom
@@ -55,6 +60,6 @@ func (m *model) View() string {
 	s += m.canvas.View() + "\n"
 	s += "N: [N]ext\t"
 	s += "A: [A]ll\t"
-	s += "Q: [Q]uittn"
-	return s
+	s += "Q: [Q]uit"
+	return anotherStyle.Render(s)
 }
