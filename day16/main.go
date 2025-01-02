@@ -124,6 +124,7 @@ type Item struct {
 }
 
 // Get possible neighbours (and their new dir and cost)
+// NOTE: This is the next action! Could be a step forward OR a right/left turn.
 func neighbours(c canvas.Model, pos, dir P) []Item {
 	res := []Item{}
 	// Straight
@@ -133,17 +134,16 @@ func neighbours(c canvas.Model, pos, dir P) []Item {
 		res = append(res, Item{p, d, 1})
 	}
 
+	// Only do the turn. Stay in same place.
 	// Right
 	d.X, d.Y = dir.Y, -dir.X // Turn right
-	p = pos.Add(d)
 	if c.Cell(p).Rune != '#' {
-		res = append(res, Item{p, d, 1001})
+		res = append(res, Item{pos, d, 1000})
 	}
 	// Left
 	d.X, d.Y = -dir.Y, dir.X // Turn left
-	p = pos.Add(d)
 	if c.Cell(p).Rune != '#' {
-		res = append(res, Item{p, d, 1001})
+		res = append(res, Item{pos, d, 1000})
 	}
 	return res
 }
