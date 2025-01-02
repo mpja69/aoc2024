@@ -1,6 +1,9 @@
 package main
 
 import (
+	"log"
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -12,7 +15,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	once := false
 	all := false
 	ok := false
-	res := []int{}
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -21,6 +23,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "n":
 			once = true
 		case "a":
+			m.t = time.Now()
 			all = true
 		}
 	}
@@ -28,14 +31,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Execute 1 or All of the moves
 	for once || all {
 		once = false
-		res, ok = m.update()
+		m.pos, m.cost, ok = m.update()
 		if !ok {
-			m.cost = res[0]
-			for _, i := range res[1:] {
-				if i < m.cost {
-					m.cost = i
-				}
-			}
+			log.Printf("%v, %d", time.Since(m.t), m.cost)
 			return m, tea.Quit
 		}
 	}
