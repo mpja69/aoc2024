@@ -4,7 +4,10 @@ import (
 	"container/heap"
 	"fmt"
 	"log"
+	"maps"
+	"math"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -30,6 +33,8 @@ func main() {
 	fmt.Printf("P1: (91464) %d\n", p1(input))
 	//P1: 354040 to high DFS/Stack
 	//P1:  95436 to high BFS/Queue
+
+	fmt.Printf("P2: (494) %d\n", p2(input))
 }
 
 var (
@@ -49,6 +54,40 @@ type model struct {
 	t      time.Time
 }
 
+func p2(input string) int {
+	m := &model{}
+
+	// Init the canvas
+	lines := strings.Split(string(input), "\n")
+	m.canvas = canvas.New(len(lines[0]), len(lines), canvas.WithViewWidth(150), canvas.WithViewHeight(50))
+	m.canvas.SetLinesWithStyle(lines, defStyle)
+	m.pos = findStart(m.canvas)
+	m.canvas.SetCellStyle(m.pos, hlStyle)
+
+	endStates, backtrackMap := dijkstraWithBacktrack(m.canvas, m.pos, P{1, 0})
+	tracks := backtrackMap.backTrack(endStates)
+	return countPositions(tracks)
+}
+
+func countPositions(tracks map[State]bool) int {
+	set := map[P]bool{}
+	for state := range tracks {
+		set[state.pos] = true
+	}
+	return len(set)
+}
+func findStart(c canvas.Model) P {
+	for x := range c.Width() {
+		for y := range c.Height() {
+			pos := P{x, y}
+			if c.Cell(pos).Rune == 'S' {
+				return pos
+			}
+		}
+	}
+	return P{}
+}
+
 func p1(input string) int {
 	m := &model{}
 
@@ -66,6 +105,7 @@ func p1(input string) int {
 	t := time.Now()
 	cost := dijkstra(m.canvas, m.pos, P{1, 0})
 	log.Printf("%v, %d\n", time.Since(t), cost)
+	return cost
 
 	// fmt.Println(m.canvas.View())
 	// Run Bubble Tea
@@ -125,14 +165,13 @@ func dijkstraFunc(c canvas.Model, pos, dir P) func() (P, int, bool) {
 		}
 
 		// Find/Add new neighbours to Queue
-		for _, neighbour := range neighbours(curr.value.pos, curr.value.dir) {
+		for _, neighbour := range neighbours(curr.value.pos, curr.value.dir, cost) {
 			if c.Cell(neighbour.value.pos).Rune == '#' {
 				continue
 			}
 			if seen[neighbour.value] {
 				continue
 			}
-			neighbour.priority += curr.priority
 			heap.Push(&pq, &neighbour)
 			// log.Printf("Added to queue: %v", neighbour)
 		}
@@ -144,31 +183,116 @@ func dijkstraFunc(c canvas.Model, pos, dir P) func() (P, int, bool) {
 }
 
 // Could either be a step forward or a step to the right/left.
-func neighbours(pos, dir P) []Item {
+func neighbours(pos, dir P, cost int) []Item {
 	res := []Item{}
 	// Straight
 	d := dir
 	p := pos.Add(d)
-	res = append(res, Item{value: State{p, d}, priority: 1})
+	res = append(res, Item{value: State{p, d}, priority: cost + 1})
 
 	// Only do the turn. Stay in same place.
 	// Right
 	d.X, d.Y = dir.Y, -dir.X // Turn right
 	p = pos.Add(d)
-	res = append(res, Item{value: State{p, d}, priority: 1001})
+	res = append(res, Item{value: State{p, d}, priority: cost + 1001})
 	// Left
 	d.X, d.Y = -dir.Y, dir.X // Turn left
 	p = pos.Add(d)
-	res = append(res, Item{value: State{p, d}, priority: 1001})
+	res = append(res, Item{value: State{p, d}, priority: cost + 1001})
 	return res
+}
+
+type CostMap map[State]int
+type BacktrackMap map[State]map[State]bool // A Map of a Set
+
+func dijkstraWithBacktrack(c canvas.Model, pos, dir P) (map[State]bool, BacktrackMap) {
+	lowestCostAt := CostMap{} // Like a seen-set, but mapped to a cost
+	bestCost := math.MaxInt   // Init with max cost
+
+	pq := PriorityQueue{}
+	heap.Push(&pq, &Item{State{pos, dir}, 0, 0})
+
+	backtrackMap := BacktrackMap{} // A Map of a Set
+	endStates := map[State]bool{}  // If we can reach the end from different tiles
+
+	// While the Queue is not empty
+	for pq.Len() > 0 {
+		// Get current item
+		curr := heap.Pop(&pq).(*Item)
+		state := curr.value
+		cost := curr.priority
+
+		// Avoid more expensive paths
+		if cost > lowestCostAt.getOrMax(state) {
+			continue
+		}
+		// Add to seen-set
+		// lowestCostAt[state] = curr.priority // Unnecessary?!
+
+		// Goal condition
+		if c.Cell(curr.value.pos).Rune == 'E' {
+			if cost > bestCost {
+				// Allready found all solutions that are "better/best"
+				break
+			}
+			// Found a new solution!
+			bestCost = cost
+			endStates[state] = true
+		}
+
+		// Find/Add new neighbours to Queue
+		for _, neighbour := range neighbours(curr.value.pos, curr.value.dir, cost) {
+			newCost, newPos := neighbour.priority, neighbour.value.pos
+			if c.Cell(newPos).Rune == '#' {
+				continue
+			}
+			lowest := lowestCostAt.getOrMax(neighbour.value)
+			if newCost > lowest {
+				continue
+			} else if newCost < lowest {
+				backtrackMap[neighbour.value] = map[State]bool{}
+				lowestCostAt[neighbour.value] = newCost
+			}
+			backtrackMap[neighbour.value][state] = true
+			heap.Push(&pq, &neighbour)
+		}
+	}
+	return endStates, backtrackMap
+}
+
+// NOTE: Get max instead of 0, (zero), if missing in the map
+func (cm CostMap) getOrMax(state State) int {
+	if lowest, ok := cm[state]; ok {
+		return lowest
+	}
+	return math.MaxInt
+}
+
+// Start at the end(s) and flodfill backwards
+func (btm BacktrackMap) backTrack(endStates map[State]bool) map[State]bool {
+	seen := map[State]bool{}                       // A set (map) with only the positions
+	states := slices.Collect(maps.Keys(endStates)) // Init a the queue (slice) with what we have in seen
+	maps.Insert(seen, maps.All(endStates))         // Init the seen map with the end states
+	for len(states) > 0 {
+		key := states[0]
+		states = states[1:]
+		for last := range btm[key] {
+			if seen[last] {
+				continue
+			}
+			seen[last] = true
+			states = append(states, last)
+		}
+	}
+	return seen
 }
 
 func dijkstra(c canvas.Model, pos, dir P) int {
 	seen := map[State]bool{}
-	res := 0
+	bestCost := 0
+
 	pq := PriorityQueue{}
-	startState := State{pos, dir}
-	heap.Push(&pq, &Item{startState, 0, 0})
+	heap.Push(&pq, &Item{State{pos, dir}, 0, 0})
 
 	// While the Queue is not empty
 	for pq.Len() > 0 {
@@ -183,23 +307,22 @@ func dijkstra(c canvas.Model, pos, dir P) int {
 		// Goal condition
 		if c.Cell(curr.value.pos).Rune == 'E' {
 			// Found the solution!
-			res = curr.priority
+			bestCost = curr.priority
 			break
 		}
 
 		// Find/Add new neighbours to Queue
-		for _, neighbour := range neighbours(curr.value.pos, curr.value.dir) {
+		for _, neighbour := range neighbours(curr.value.pos, curr.value.dir, curr.priority) {
 			if c.Cell(neighbour.value.pos).Rune == '#' {
 				continue
 			}
 			if seen[neighbour.value] {
 				continue
 			}
-			neighbour.priority += curr.priority
 			heap.Push(&pq, &neighbour)
 		}
 	}
-	return res
+	return bestCost
 }
 
 // ------------------------------- Utility functions --------------------------------
