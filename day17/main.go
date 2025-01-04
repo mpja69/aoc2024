@@ -10,6 +10,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type Register struct {
+	A, B, C int
+}
+
 func main() {
 	// Setup logging
 	f, err := tea.LogToFile("debug.log", "debug")
@@ -40,98 +44,67 @@ func main() {
 	register.C, _ = strconv.Atoi(C)
 
 	comboStrings := strings.Split(strings.Split(parts[1], ":")[1], ",")
-	// combo := []Combo{}
-	fns := []func(){} // HACK:--------------------- En lista med Closures (funktioner med "minne")
+	code := []func(){}
 	src := []string{}
 
+	m := &model{register: register, code: code, src: src}
 	for i := 0; i < len(comboStrings); i += 2 {
 		op, _ := strconv.Atoi(comboStrings[i])
 		val, _ := strconv.Atoi(comboStrings[i+1])
-		// instruction := Combo{mnemonic: mnemonics[op], operand: val, fn: methods[op]}
-		// combo = append(combo, instruction)
-		fn := operationFunc(op, val) // HACK:--------------------- Som en "factory" som ger "rätt" closure och "sparar" input
-		fns = append(fns, fn)        // HACK:---------------------
-		src = append(src, srcCode(op, val))
+
+		m.code = append(m.code, getCode(op, val, m))
+		m.src = append(m.src, getSource(op, val))
 	}
 
-	fmt.Printf("P1: () %d\n", p1(register, fns, src))
+	fmt.Printf("P1: () %d\n", p1(m))
 }
 
-var mnemonics = []string{
-	"adv",
-	"bxl",
-	"bst",
-	"jnz",
-	"bxc",
-	"out",
-	"bdv",
-	"cdv",
-}
-
-var methods = []func(Combo){
-	Combo.adv,
-	Combo.bxl,
-	Combo.bst,
-	Combo.jnz,
-	Combo.bxc,
-	Combo.out,
-	Combo.bdv,
-	Combo.cdv,
-}
-
-func operationFunc(operation, operand int) func() {
-
-	log.Printf("ops %d, oper %d", operation, operand)
-	switch operation {
-	case 0:
-		return func() { adv(operand) }
-	case 1:
-		return func() { bxl(operand) }
-	case 2:
-		return func() { bst(operand) }
-	case 3:
-		return func() { jnz(operand) }
-	case 4:
-		return func() { bxc(operand) }
-	case 5:
-		return func() { out(operand) }
-	case 6:
-		return func() { bdv(operand) }
-	case 7:
-		return func() { cdv(operand) }
+func p1(m *model) int {
+	// Run Bubble Tea
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		os.Exit(1)
 	}
-	return nil
+
+	return 0
 }
 
-func srcCode(operation, operand int) string {
+// ----------- Wrapper for the operations --------------
+func getCode(operation, operand int, m *model) func() {
+	functions := []func(int, *model){adv, bxl, bst, jnz, bxc, out, bdv, cdv}
+	return func() { functions[operation](operand, m) }
+}
+
+func getSource(operation, operand int) string {
+	mnemonics := []string{"adv", "bxl", "bst", "jnz", "bxc", "out", "bdv", "cdv"}
 	return fmt.Sprintf("%s %d", mnemonics[operation], operand)
 }
 
+// ------------ The functions for each operation --------------------
 // 0
-func adv(operand int) {
-	log.Printf("adv (%v): operand %d\n", adv, operand)
-	val := getVal(operand)
+func adv(operand int, m *model) {
+	log.Printf("adv: operand %d\n", operand)
+	val := getVal(operand, m.register)
 	m.register.A /= (1 << val)
 	m.PC++
 }
 
 // 1
-func bxl(operand int) {
+func bxl(operand int, m *model) {
 	log.Printf("bxl: operand %d\n", operand)
 	m.register.B ^= operand
 	m.PC++
 }
 
-// 2 FIX: ska vara out-5
-func bst(operand int) {
+// 2
+func bst(operand int, m *model) {
 	log.Printf("bst: operand %d\n", operand)
-	val := getVal(operand)
+	val := getVal(operand, m.register)
 	m.register.B = val % 8
 	m.PC++
 }
 
 // 3
-func jnz(operand int) {
+func jnz(operand int, m *model) {
 	log.Printf("jnz: operand %d\n", operand)
 	if m.register.A != 0 {
 		m.PC = operand
@@ -140,17 +113,17 @@ func jnz(operand int) {
 	}
 }
 
-// 4 FIX: ska vara 3- jnz
-func bxc(operand int) {
+// 4
+func bxc(operand int, m *model) {
 	log.Printf("bxc: operand %d\n", operand)
 	m.register.B ^= m.register.C
 	m.PC++
 }
 
 // 5
-func out(operand int) {
+func out(operand int, m *model) {
 	log.Printf("out: operand %d\n", operand)
-	val := getVal(operand) % 8
+	val := getVal(operand, m.register) % 8
 	if len(m.output) > 0 {
 		m.output += ","
 	}
@@ -159,121 +132,33 @@ func out(operand int) {
 }
 
 // 6
-func bdv(operand int) {
+func bdv(operand int, m *model) {
 	log.Printf("bdv: operand %d\n", operand)
-	val := getVal(operand)
+	val := getVal(operand, m.register)
 	m.register.B = m.register.A / (1 << val)
 	m.PC++
 }
 
 // 7
-func cdv(operand int) {
+func cdv(operand int, m *model) {
 	log.Printf("cdv: operand %d\n", operand)
-	val := getVal(operand)
+	val := getVal(operand, m.register)
 	m.register.C = m.register.A / (1 << val)
 	m.PC++
 }
 
-// -------------------- Cmds --------------------
-// Men detta funkar ju inte...för jag måste ju ge operanden dynamiskt.
-// 0
-func advFunc(operand int) tea.Cmd {
-	return func() tea.Msg {
-		adv(operand)
-		return m.PC
-	}
-}
-
-func getVal(operand int) int {
+// ----------- Helper functions ------------
+func getVal(operand int, reg Register) int {
 	switch operand {
 	case 0, 1, 2, 3:
 		return operand
 	case 4:
-		return m.register.A
+		return reg.A
 	case 5:
-		return m.register.B
+		return reg.B
 	case 6:
-		return m.register.C
+		return reg.C
 	}
 	log.Fatalf("Err: Invalid operand! op=%d", operand)
-	return 0
-}
-
-type Register struct {
-	A, B, C int
-}
-
-type Combo struct {
-	mnemonic string
-	operand  int
-	fn       func(c Combo)
-}
-
-func (c Combo) String() string {
-	return fmt.Sprintf("%s %d", c.mnemonic, c.operand)
-}
-
-func (c Combo) adv() { //adv(c.operand) }
-	val := getVal(c.operand)
-	m.register.A /= (1 << val)
-	m.PC++
-}
-
-func (c Combo) bxl() { //bxl(c.operand) }
-	m.register.B ^= c.operand
-	m.PC++
-}
-
-func (c Combo) bst() { //bst(c.operand) }
-	val := getVal(c.operand)
-	m.register.B = val % 8
-	m.PC++
-}
-
-func (c Combo) jnz() { //jnz(c.operand) }
-	if m.register.A != 0 {
-		m.PC = c.operand
-	} else {
-		m.PC++
-	}
-}
-
-func (c Combo) bxc() { //bxc(c.operand) }
-	m.register.B ^= m.register.C
-	m.PC++
-}
-
-func (c Combo) out() { //out(c.operand) }
-	val := getVal(c.operand) % 8
-	if len(m.output) > 0 {
-		m.output += ","
-	}
-	m.output += fmt.Sprintf("%d", val)
-	m.PC++
-}
-
-func (c Combo) bdv() { //bdv(c.operand) }
-	val := getVal(c.operand)
-	m.register.B = m.register.A / (1 << val)
-	m.PC++
-}
-
-func (c Combo) cdv() { // cdv(c.operand) }
-	val := getVal(c.operand)
-	m.register.C = m.register.A / (1 << val)
-	m.PC++
-}
-
-var m *model
-
-func p1(regs Register, ops []func(), src []string) int {
-
-	m = &model{register: regs, ops: ops, src: src}
-
-	// Run Bubble Tea
-	if _, err := tea.NewProgram(m).Run(); err != nil {
-		os.Exit(1)
-	}
-
 	return 0
 }
