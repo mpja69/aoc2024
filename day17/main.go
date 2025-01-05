@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -25,7 +26,7 @@ func main() {
 	log.Printf("-------------------------------------------")
 
 	// Read the input
-	data, err := os.ReadFile("sample.txt")
+	data, err := os.ReadFile("data.txt")
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -43,7 +44,10 @@ func main() {
 	C := strings.Trim(strings.Split(regStrings[2], ":")[1], " ")
 	register.C, _ = strconv.Atoi(C)
 
-	comboStrings := strings.Split(strings.Split(parts[1], ":")[1], ",")
+	cleanStrings := strings.Trim(strings.Split(parts[1], ":")[1], " ")
+	comboStrings := strings.Split(cleanStrings, ",")
+
+	log.Printf("%v", comboStrings)
 	code := []func(){}
 	src := []string{}
 
@@ -56,16 +60,16 @@ func main() {
 		m.src = append(m.src, getSource(op, val))
 	}
 
-	fmt.Printf("P1: () %d\n", p1(m))
+	fmt.Printf("P1: (1,5,7,4,1,6,0,3,0) %s\n", p1(m))
 }
 
-func p1(m *model) int {
+func p1(m *model) string {
 	// Run Bubble Tea
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		os.Exit(1)
 	}
 
-	return 0
+	return m.output
 }
 
 // ----------- Wrapper for the operations --------------
@@ -75,16 +79,15 @@ func getCode(operation, operand int, m *model) func() {
 }
 
 func getSource(operation, operand int) string {
-	mnemonics := []string{"adv", "bxl", "bst", "jnz", "bxc", "out", "bdv", "cdv"}
+	mnemonics := []string{"0.adv", "1.bxl", "2.bst", "3.jnz", "4.bxc", "5.out", "6.bdv", "7.cdv"}
 	return fmt.Sprintf("%s %d", mnemonics[operation], operand)
 }
 
 // ------------ The functions for each operation --------------------
 // 0
 func adv(operand int, m *model) {
-	log.Printf("adv: operand %d\n", operand)
 	val := getVal(operand, m.register)
-	m.register.A /= (1 << val)
+	m.register.A = dividePow(m.register.A, val)
 	m.PC++
 }
 
@@ -135,7 +138,7 @@ func out(operand int, m *model) {
 func bdv(operand int, m *model) {
 	log.Printf("bdv: operand %d\n", operand)
 	val := getVal(operand, m.register)
-	m.register.B = m.register.A / (1 << val)
+	m.register.B = dividePow(m.register.A, val)
 	m.PC++
 }
 
@@ -143,7 +146,7 @@ func bdv(operand int, m *model) {
 func cdv(operand int, m *model) {
 	log.Printf("cdv: operand %d\n", operand)
 	val := getVal(operand, m.register)
-	m.register.C = m.register.A / (1 << val)
+	m.register.C = dividePow(m.register.A, val)
 	m.PC++
 }
 
@@ -161,4 +164,12 @@ func getVal(operand int, reg Register) int {
 	}
 	log.Fatalf("Err: Invalid operand! op=%d", operand)
 	return 0
+}
+
+func dividePow(numerator, logDenominator int) int {
+	res := float64(numerator)
+	for range logDenominator {
+		res /= 2.0
+	}
+	return int(math.Trunc(res))
 }

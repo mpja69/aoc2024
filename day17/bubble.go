@@ -20,20 +20,21 @@ type model struct {
 	codeEnumerator list.Enumerator
 	codeStyle      list.StyleFunc
 }
+type pcMsg int
 
 func (m *model) Init() tea.Cmd {
 	m.Next = func() tea.Msg {
 		if m.PC < len(m.code) {
 			m.code[m.PC]()
 		}
-		return m.PC
+		return pcMsg(m.PC)
 	}
 
 	m.All = func() tea.Msg {
 		for m.PC < len(m.code) {
 			m.code[m.PC]()
 		}
-		return m.PC
+		return pcMsg(m.PC)
 	}
 
 	m.codeEnumerator = func(_ list.Items, i int) string {
@@ -64,24 +65,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "a":
 			return m, m.All
 		}
+	case pcMsg:
+		if int(msg) >= len(m.code) {
+			return m, tea.Quit
+		}
 	}
 
 	return m, nil
 }
-
-// func Next() tea.Msg {
-// 	if M.PC < len(M.code) {
-// 		M.code[M.PC]()
-// 	}
-// 	return M.PC
-// }
-
-// func All() tea.Msg {
-// 	for M.PC < len(M.code) {
-// 		M.code[M.PC]()
-// 	}
-// 	return M.PC
-// }
 
 func (m *model) View() string {
 	tr := table.New()
