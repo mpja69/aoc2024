@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -38,42 +38,38 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 
-	// Parse the the input
-	input := strings.Trim(string(data), " \n")
-	parts := strings.Split(input, "\n\n")
-	regStrings := strings.Split(parts[0], "\n")
+	re := regexp.MustCompile(`(\d+)`)
+	matches := re.FindAllString(string(data), -1)
+
 	register := Register{}
+	register.A, _ = strconv.Atoi(matches[0])
+	register.B, _ = strconv.Atoi(matches[1])
+	register.C, _ = strconv.Atoi(matches[2])
 
-	A := strings.Trim(strings.Split(regStrings[0], ":")[1], " ")
-	register.A, _ = strconv.Atoi(A)
-	B := strings.Trim(strings.Split(regStrings[1], ":")[1], " ")
-	register.B, _ = strconv.Atoi(B)
-	C := strings.Trim(strings.Split(regStrings[2], ":")[1], " ")
-	register.C, _ = strconv.Atoi(C)
-
-	cleanStrings := strings.Trim(strings.Split(parts[1], ":")[1], " ")
-	comboStrings := strings.Split(cleanStrings, ",")
-
-	log.Printf("%v", comboStrings)
 	codeFns := []func(){}
 	src := []string{}
 	stringFns := []func(){}
-
-	length := len(comboStrings) / 2
-	m := &model{reg: register, codeFns: codeFns, src: src, stringFns: stringFns, length: length}
-
-	for i := 0; i < len(comboStrings); i += 2 {
-		op, _ := strconv.Atoi(comboStrings[i])
-		val, _ := strconv.Atoi(comboStrings[i+1])
+	m := &model{reg: register}
+	length := 0
+	for i := 3; i < len(matches); i += 2 {
+		op, _ := strconv.Atoi(matches[i])
+		val, _ := strconv.Atoi(matches[i+1])
 
 		// Store the functions to execute and show operations, and show the source code listing
-		m.codeFns = append(m.codeFns, getCodeFunc(op, val, m))
-		m.stringFns = append(m.stringFns, getStringFunc(op, val, m))
-		m.src = append(m.src, getSource(op, val))
+		codeFns = append(codeFns, getCodeFunc(op, val, m))
+		stringFns = append(stringFns, getStringFunc(op, val, m))
+		src = append(src, getSource(op, val))
 
 		// Store the input code sequence
 		writeAnyToString(&m.inputCode, op)
+
+		length++
 	}
+	m.reg = register
+	m.codeFns = codeFns
+	m.src = src
+	m.stringFns = stringFns
+	m.length = length
 
 	fmt.Printf("P1: (1,5,7,4,1,6,0,3,0) %s\n", p1(m))
 }
