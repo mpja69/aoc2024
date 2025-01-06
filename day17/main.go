@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -13,6 +12,14 @@ import (
 
 type Register struct {
 	A, B, C int
+}
+
+func (r Register) String() [][]string {
+	return [][]string{
+		{"A", fmt.Sprint(r.A)},
+		{"B", fmt.Sprint(r.B)},
+		{"C", fmt.Sprint(r.C)},
+	}
 }
 
 func main() {
@@ -48,16 +55,24 @@ func main() {
 	comboStrings := strings.Split(cleanStrings, ",")
 
 	log.Printf("%v", comboStrings)
-	code := []func(){}
+	codeFns := []func(){}
 	src := []string{}
+	stringFns := []func(){}
 
-	m := &model{register: register, code: code, src: src}
+	length := len(comboStrings) / 2
+	m := &model{reg: register, codeFns: codeFns, src: src, stringFns: stringFns, length: length}
+
 	for i := 0; i < len(comboStrings); i += 2 {
 		op, _ := strconv.Atoi(comboStrings[i])
 		val, _ := strconv.Atoi(comboStrings[i+1])
 
-		m.code = append(m.code, getCode(op, val, m))
+		// Store the functions to execute and show operations, and show the source code listing
+		m.codeFns = append(m.codeFns, getCodeFunc(op, val, m))
+		m.stringFns = append(m.stringFns, getStringFunc(op, val, m))
 		m.src = append(m.src, getSource(op, val))
+
+		// Store the input code sequence
+		writeAnyToString(&m.inputCode, op)
 	}
 
 	fmt.Printf("P1: (1,5,7,4,1,6,0,3,0) %s\n", p1(m))
@@ -73,85 +88,135 @@ func p1(m *model) string {
 }
 
 // ----------- Wrapper for the operations --------------
-func getCode(operation, operand int, m *model) func() {
+
+// This func that returns a func that calls a func
+// Usually a wrapper like this...Is a func that returns a func that is declared within
+func getCodeFunc(operation, operand int, m *model) func() {
 	functions := []func(int, *model){adv, bxl, bst, jnz, bxc, out, bdv, cdv}
 	return func() { functions[operation](operand, m) }
 }
 
+func getStringFunc(operation, operand int, m *model) func() {
+	functions := []func(int, *model){advString, bxlString, bstString, jnzString, bxcString, outString, bdvString, cdvString}
+	return func() { functions[operation](operand, m) }
+}
+
 func getSource(operation, operand int) string {
-	mnemonics := []string{"0.adv", "1.bxl", "2.bst", "3.jnz", "4.bxc", "5.out", "6.bdv", "7.cdv"}
-	return fmt.Sprintf("%s %d", mnemonics[operation], operand)
+	mnemonics := []string{"adv", "bxl", "bst", "jnz", "bxc", "out", "bdv", "cdv"}
+	comments := []string{
+		"; A >> %s -> A",
+		"; B xor %s -> B",
+		"; %s mod 8  -> B",
+		"; jp %s, if A!=0",
+		"; B xor C -> B, (skip %s)",
+		"; %s mod 8 -> OUT",
+		"; A >> %s -> B",
+		"; A >> %s -> C"}
+	litOrReg := []string{"0", "1", "2", "3", "A", "B", "C", "N/A"}
+	format := comments[operation]
+	comment := fmt.Sprintf(format, litOrReg[operand])
+	return fmt.Sprintf("%d %d\t\t%s %s\t\t%s", operation, operand, mnemonics[operation], litOrReg[operand], comment)
 }
 
 // ------------ The functions for each operation --------------------
 // 0
 func adv(operand int, m *model) {
-	val := getVal(operand, m.register)
-	m.register.A = dividePow(m.register.A, val)
-	m.PC++
+	val := combo(operand, m.reg)
+	m.reg.A = m.reg.A >> val
+	m.dirty['A'] = true
+	m.pc++
+}
+func advString(operand int, m *model) {
+	val := combo(operand, m.reg)
+	m.opString = fmt.Sprintf("%d >> %d  -> A", m.reg.A, val)
 }
 
 // 1
 func bxl(operand int, m *model) {
-	log.Printf("bxl: operand %d\n", operand)
-	m.register.B ^= operand
-	m.PC++
+	m.reg.B ^= operand
+	m.dirty['B'] = true
+	m.pc++
+}
+func bxlString(operand int, m *model) {
+	m.opString = fmt.Sprintf("%d xor %d  -> B", m.reg.B, operand)
 }
 
 // 2
 func bst(operand int, m *model) {
-	log.Printf("bst: operand %d\n", operand)
-	val := getVal(operand, m.register)
-	m.register.B = val % 8
-	m.PC++
+	val := combo(operand, m.reg)
+	m.reg.B = val % 8
+	m.dirty['B'] = true
+	m.pc++
+}
+func bstString(operand int, m *model) {
+	val := combo(operand, m.reg)
+	m.opString = fmt.Sprintf("%d mod 8  -> B", val)
 }
 
 // 3
 func jnz(operand int, m *model) {
-	log.Printf("jnz: operand %d\n", operand)
-	if m.register.A != 0 {
-		m.PC = operand
+	if m.reg.A != 0 {
+		m.pc = operand
 	} else {
-		m.PC++
+		m.pc++
+	}
+}
+func jnzString(operand int, m *model) {
+	if m.reg.A != 0 {
+		m.opString = fmt.Sprintf("%d  -> PC", operand)
+	} else {
+		m.opString = fmt.Sprintf("%d  -> PC", m.pc+1)
 	}
 }
 
 // 4
 func bxc(operand int, m *model) {
-	log.Printf("bxc: operand %d\n", operand)
-	m.register.B ^= m.register.C
-	m.PC++
+	m.reg.B ^= m.reg.C
+	m.dirty['B'] = true
+	m.pc++
+}
+
+func bxcString(operand int, m *model) {
+	m.opString = fmt.Sprintf("%d xor %d -> B", m.reg.B, m.reg.C)
 }
 
 // 5
 func out(operand int, m *model) {
-	log.Printf("out: operand %d\n", operand)
-	val := getVal(operand, m.register) % 8
-	if len(m.output) > 0 {
-		m.output += ","
-	}
-	m.output += fmt.Sprintf("%d", val)
-	m.PC++
+	val := combo(operand, m.reg)
+	val %= 8
+	writeAnyToString(&m.output, val)
+	m.pc++
+}
+func outString(operand int, m *model) {
+	val := combo(operand, m.reg)
+	m.opString = fmt.Sprintf("%d mod 8 -> out", val)
 }
 
 // 6
 func bdv(operand int, m *model) {
-	log.Printf("bdv: operand %d\n", operand)
-	val := getVal(operand, m.register)
-	m.register.B = dividePow(m.register.A, val)
-	m.PC++
+	val := combo(operand, m.reg)
+	m.reg.B = m.reg.A >> val
+	m.dirty['B'] = true
+	m.pc++
+}
+func bdvString(operand int, m *model) {
+	val := combo(operand, m.reg)
+	m.opString = fmt.Sprintf("%d >> %d -> B", m.reg.A, val)
 }
 
-// 7
 func cdv(operand int, m *model) {
-	log.Printf("cdv: operand %d\n", operand)
-	val := getVal(operand, m.register)
-	m.register.C = dividePow(m.register.A, val)
-	m.PC++
+	val := combo(operand, m.reg)
+	m.reg.C = m.reg.A >> val
+	m.dirty['C'] = true
+	m.pc++
+}
+func cdvString(operand int, m *model) {
+	val := combo(operand, m.reg)
+	m.opString = fmt.Sprintf("%d >> %d -> C", m.reg.A, val)
 }
 
 // ----------- Helper functions ------------
-func getVal(operand int, reg Register) int {
+func combo(operand int, reg Register) int {
 	switch operand {
 	case 0, 1, 2, 3:
 		return operand
@@ -166,10 +231,10 @@ func getVal(operand int, reg Register) int {
 	return 0
 }
 
-func dividePow(numerator, logDenominator int) int {
-	res := float64(numerator)
-	for range logDenominator {
-		res /= 2.0
+func writeAnyToString(dst *string, src int) {
+	if len(*dst) > 0 {
+		*dst += ","
 	}
-	return int(math.Trunc(res))
+	*dst += fmt.Sprintf("%v", src)
+
 }
