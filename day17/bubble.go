@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -9,18 +10,48 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 )
 
+const (
+	A = iota
+	B
+	C
+)
+
+type Register struct {
+	A, B, C int
+}
+
+func (m model) RegStrings() [][]string {
+	if m.decimal {
+		return [][]string{
+			{fmt.Sprintf("A: %d", m.reg[A])},
+			{fmt.Sprintf("B: %d", m.reg[B])},
+			{fmt.Sprintf("C: %d", m.reg[C])},
+		}
+	} else {
+		return [][]string{
+			{fmt.Sprintf("A: %o", m.reg[A])},
+			{fmt.Sprintf("B: %o", m.reg[B])},
+			{fmt.Sprintf("C: %o", m.reg[C])},
+		}
+
+	}
+}
+
 type model struct {
-	reg            Register        // Registers: A, B C
-	dirty          map[rune]bool   // Dirty flags for the registers
+	reg            []int           // Registers
+	dirty          [3]bool         // Dirty flags for the registers
+	decimal        bool            // true if octal, otherwise decimal
 	pc             int             // Program Counter
-	output         string          // Comma separated string of operations
-	inputCode      string          // Comma separated string of operations
-	length         int             // Length of all the slices
-	opString       string          // The string representation och the next operation
-	stringFns      []func()        // The string generations of the opreations
+	output         []string        // A slice of the output
+	newOutput      int             // Latest output
+	inputProg      string          // Comma separated string of operations
+	currOpString   string          // The string representation och the next operation
+	length         int             // Length of the following slices
+	stringFns      []func()        // The functions that generate the the currOpString
 	codeFns        []func()        // The operations as functions (closures with each operand)
 	src            []string        // Disassembled source code
 	NextCmd        tea.Cmd         // Bubbletea Command for running Next operation
+	OnceCmd        tea.Cmd         // Bubbletea Command for running all operation ONCE
 	AllCmd         tea.Cmd         // Bubbletea Command for running All operations
 	StringCmd      tea.Cmd         // Bubbletea Command for rendering the next (next) operation
 	codeEnumerator list.Enumerator // Bubbletea
@@ -34,14 +65,22 @@ type stringMsg string
 func (m *model) Init() tea.Cmd {
 	m.NextCmd = func() tea.Msg {
 		if m.pc < m.length {
-			m.dirty = map[rune]bool{}
+			m.dirty = [3]bool{}
 			m.codeFns[m.pc]()
 		}
 		return pcMsg(m.pc)
 	}
 
+	m.OnceCmd = func() tea.Msg {
+		m.dirty = [3]bool{}
+		for m.pc < m.length-1 {
+			m.codeFns[m.pc]()
+		}
+		m.codeFns[m.pc]()
+		return pcMsg(m.pc)
+	}
 	m.AllCmd = func() tea.Msg {
-		m.dirty = map[rune]bool{}
+		m.dirty = [3]bool{}
 		for m.pc < m.length {
 			m.codeFns[m.pc]()
 		}
@@ -52,7 +91,7 @@ func (m *model) Init() tea.Cmd {
 		if m.pc < m.length {
 			m.stringFns[m.pc]() // pc must be updated, since this looks at the next operation
 		}
-		return stringMsg(m.opString)
+		return stringMsg(m.currOpString)
 	}
 
 	m.codeEnumerator = func(_ list.Items, i int) string {
@@ -69,7 +108,7 @@ func (m *model) Init() tea.Cmd {
 		return lipgloss.NewStyle()
 	}
 	m.RegStyle = func(row, _ int) lipgloss.Style {
-		if m.dirty[rune('A'+row)] {
+		if row >= 0 && m.dirty[row] {
 			return lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 		}
 		return lipgloss.NewStyle()
@@ -89,6 +128,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.NextCmd
 		case "a":
 			return m, m.AllCmd
+		case "o":
+			return m, m.OnceCmd
+		case "d":
+			m.decimal = !m.decimal
 		}
 	case pcMsg:
 		if int(msg) >= m.length {
@@ -101,21 +144,21 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) View() string {
-	tReg := table.New().Headers("Reg", "        ").Rows(m.reg.String()...).StyleFunc(m.RegStyle)
+	tReg := table.New().Rows(m.RegStrings()...).StyleFunc(m.RegStyle).Width(40)
+	if m.decimal {
+		tReg.Headers("Registers - Decimal")
+	} else {
+		tReg.Headers("Registers - Octal")
+	}
 
-	tIO := table.New().Headers("I/0", "")
-	tIO.Row("in", m.inputCode)
-	tIO.Row("out", m.output)
+	tIO := table.New().Headers("I/0", "").Width(40)
+	tIO.Row("in", m.inputProg)
+	tIO.Row("out", strings.Join(m.output, ","))
 	tIO.Row("", "")
 
-	tExec := table.New().Headers("            Execution            ")
+	tExec := table.New().Headers("Next opration to be executed").Width(80)
 	if m.pc < m.length {
-		// currOp := m.operations[m.pc]
-		// currVal := m.operands[m.pc]
-		// format := codeFormats[currOp]
-		// numbers := getNumbers(currOp, currVal, m.reg)
-		// tExec.Row(fmt.Sprintf(format, numbers...))
-		tExec.Row(m.opString)
+		tExec.Row(m.currOpString)
 	} else {
 		tExec.Row("Finished!")
 	}
@@ -128,40 +171,6 @@ func (m *model) View() string {
 	s += "\n\n\nControls: [N]ext  [A]ll  [Q]uit\n\n"
 	return s
 }
-
-// ------------ Helper functions to visualize the current operation and values ------------------
-// var codeFormats = []string{
-// 	"%d div 2^%d -> A",
-// 	"%d xor %d -> B",
-// 	"%d mod 8 -> B",
-// 	"jnz %d",
-// 	"%d xor %d -> B",
-// 	"%d mod 8 -> out",
-// 	"%d div 2^%d -> B",
-// 	"%d div 2^%d -> C",
-// }
-//
-// func getNumbers(operation int, operand int, reg Register) []any {
-// 	switch operation {
-// 	case 0:
-// 		return []any{reg.A, combo(operand, reg)}
-// 	case 1:
-// 		return []any{reg.B, operand}
-// 	case 2:
-// 		return []any{combo(operand, reg)}
-// 	case 3:
-// 		return []any{operand}
-// 	case 4:
-// 		return []any{reg.B, reg.C}
-// 	case 5:
-// 		return []any{combo(operand, reg)}
-// 	case 6:
-// 		return []any{reg.A, combo(operand, reg)}
-// 	case 7:
-// 		return []any{reg.A, combo(operand, reg)}
-// 	}
-// 	return []any{}
-// }
 
 // func (m *model) View() string {
 // 	s := "\nRegisters:\n"

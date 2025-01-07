@@ -11,10 +11,11 @@
 8. Easy. Grid. 
 9. Parsing lines.
 10. Pathfinding. BFS.
-11. Tricky. Recursion. 2nd very deep. Memoization.
+11. Tricky. Recursion. 2nd very deep. Memoization. lenInt() and divideInt()
 12. Grid w regions. BFS. Finding area + perimeter + sides 
 13. Linear Equation System. Gauss elimination. Big mumbers. 
 14. Easy. Robots moving speed+pos. Weird 2nd: looking for christmas tree 
 15. Grid. BFS. BubbleTea for visualization.
-16. Hard. Grid. Pathfinding. BFS. Dijkstra + backtrackingg
+16. Hard. Grid. Pathfinding. BFS. Dijkstra + backtracking
+17. Simulate a machine. Reverse engineering program
 
