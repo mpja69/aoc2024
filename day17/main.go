@@ -22,7 +22,7 @@ func main() {
 	log.Printf("-------------------------------------------")
 
 	// Read the input
-	data, err := os.ReadFile("s2.txt")
+	data, err := os.ReadFile("data.txt")
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -31,8 +31,7 @@ func main() {
 	matches := re.FindAllString(string(data), -1)
 	regs, prog := matches[:3], matches[3:]
 
-	//register := Register{}
-	register := make([]int, 3)
+	register := [3]int{}
 
 	register[A], _ = strconv.Atoi(regs[0])
 	register[B], _ = strconv.Atoi(regs[1])
@@ -64,6 +63,7 @@ func main() {
 	m.length = length
 	m.inputProg = strings.Join(prog, ",")
 	m.dirty = [3]bool{}
+	m.newOutput = -1
 
 	// fmt.Printf("P1: (1,5,7,4,1,6,0,3,0) %s\n", p1(m))
 	fmt.Printf("P2: Base10 Reg.A: %d\n", p2(m, sequence))
@@ -209,7 +209,7 @@ func cdvString(operand int, m *model) {
 }
 
 // ----------- Helper functions ------------
-func combo(operand int, reg []int) int {
+func combo(operand int, reg [3]int) int {
 	switch operand {
 	case 0, 1, 2, 3:
 		return operand
@@ -222,13 +222,4 @@ func combo(operand int, reg []int) int {
 	}
 	log.Fatalf("Err: Invalid operand! op=%d", operand)
 	return 0
-}
-
-// NOTE: Not used. Using strings.Join instead
-func writeAnyToString(dst *string, src int) {
-	if len(*dst) > 0 {
-		*dst += ","
-	}
-	*dst += fmt.Sprintf("%v", src)
-
 }

@@ -37,12 +37,34 @@ func (m model) RegStrings() [][]string {
 	}
 }
 
+// func NewModel(a, b, c int, prog []string, codeFns, stringFns []func(), src []string) *model {
+// 	return &model{
+// 		reg:       [3]int{a, b, c},
+// 		dirty:     [3]bool{},
+// 		inputProg: strings.Join(prog, ","),
+// 		codeFns:   codeFns,
+// 		stringFns: stringFns,
+// 		src:       src,
+// 		length:    len(codeFns),
+// 	}
+// }
+
+func (m *model) reset() {
+	m.reg = [3]int{}
+	m.dirty = [3]bool{}
+	m.pc = 0
+	m.output = []string{}
+	m.testSequence = []int{}
+	m.newOutput = -1
+}
+
 type model struct {
-	reg            []int           // Registers
+	reg            [3]int          // Registers
 	dirty          [3]bool         // Dirty flags for the registers
 	decimal        bool            // true if octal, otherwise decimal
 	pc             int             // Program Counter
 	output         []string        // A slice of the output
+	testSequence   []int           // The slice that setting the A register
 	newOutput      int             // Latest output
 	inputProg      string          // Comma separated string of operations
 	currOpString   string          // The string representation och the next operation
@@ -59,32 +81,35 @@ type model struct {
 	RegStyle       table.StyleFunc // Bubbletea
 	srcList        *list.List      // Bubbletea
 }
-type pcMsg int
+type pcUpdatedMsg int
 type stringMsg string
 
 func (m *model) Init() tea.Cmd {
 	m.NextCmd = func() tea.Msg {
 		if m.pc < m.length {
 			m.dirty = [3]bool{}
+			m.newOutput = -1
 			m.codeFns[m.pc]()
 		}
-		return pcMsg(m.pc)
+		return pcUpdatedMsg(m.pc)
 	}
 
 	m.OnceCmd = func() tea.Msg {
 		m.dirty = [3]bool{}
+		m.newOutput = -1
 		for m.pc < m.length-1 {
 			m.codeFns[m.pc]()
 		}
 		m.codeFns[m.pc]()
-		return pcMsg(m.pc)
+		return pcUpdatedMsg(m.pc)
 	}
 	m.AllCmd = func() tea.Msg {
 		m.dirty = [3]bool{}
+		m.newOutput = -1
 		for m.pc < m.length {
 			m.codeFns[m.pc]()
 		}
-		return pcMsg(m.pc)
+		return pcUpdatedMsg(m.pc)
 	}
 
 	m.StringCmd = func() tea.Msg {
@@ -133,7 +158,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "d":
 			m.decimal = !m.decimal
 		}
-	case pcMsg:
+	case pcUpdatedMsg:
 		if int(msg) >= m.length {
 			return m, tea.Quit
 		}
@@ -152,9 +177,14 @@ func (m *model) View() string {
 	}
 
 	tIO := table.New().Headers("I/0", "").Width(40)
+	// tIO.Row("test", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(m.testSequence)), ","), "[]"))
+	if m.newOutput < 0 {
+		tIO.Row("new", "")
+	} else {
+		tIO.Row("new", fmt.Sprintf("%d", m.newOutput))
+	}
 	tIO.Row("in", m.inputProg)
 	tIO.Row("out", strings.Join(m.output, ","))
-	tIO.Row("", "")
 
 	tExec := table.New().Headers("Next opration to be executed").Width(80)
 	if m.pc < m.length {
