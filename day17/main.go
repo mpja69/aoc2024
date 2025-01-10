@@ -66,7 +66,7 @@ func main() {
 	m.newOutput = -1
 
 	// fmt.Printf("P1: (1,5,7,4,1,6,0,3,0) %s\n", p1(m))
-	fmt.Printf("P2: Base10 Reg.A: %d\n", p2(m, sequence))
+	fmt.Printf("P2: (108107574778365) %d\n", p2(m, sequence))
 }
 
 func p1(m *model) string {

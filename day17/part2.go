@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"math"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -16,49 +18,184 @@ func p2(m *model, program []int) int {
 
 	fmt.Printf("Program:  %v\n", program)
 
-	a, ok, seq := findA(program, 0, []int{})
-	if ok {
-		fmt.Printf("Sequence: %v, %o\n", seq, a)
-		m.reg[A] = convertBase8SequnceToBase10(seq)
-		tea.NewProgram(m).Run()
-		return a
-	} else {
-		return -1
-	}
+	m.next = DFSModelFunc(m, program)
+	m.hasNext = true
+	// a := findDFS(program)
+	// a,_ seq := findRec(program, 0)
+	m.reg[A] = 0
+	tea.NewProgram(m).Run()
+	return m.stack.pop().answer
 
-	return -1
 }
 
-// a = ans << 3 | t		// a = 8 + [ ]
-// b = a % 8		// ersätts med b = t
-// b = b ^ 2
-// c = a >> b
-// b = b ^ c
-// b = b ^ 3
-// out(b % 8)
-// a = a >> 3
-// if a != 0: jp 0
+type Item struct {
+	answer int
+	idx    int
+}
 
-// bst A        ; B = A % 8, (last digit to B)
-// bxl 3        ; B = B ^ 3, (this one have just another exp...doesn't matter)
-// cdv B        ; C = A >> B
-// bxc 0        ; B = B ^ C
-// bxl 3        ; B = B ^ 3,  (these 2 switced place...doesn't matter)
-// adv 3        ; A = A >> 3, (these 2 switced place...doesn't matter)
-// out B        ; OUT = B % 8, (last digit to out)
-// jnz 0        ; jp 0, if A!=0
+type Stack []Item
 
-// program =  [2 4 1 3 7 5 4 0 1 3 0 3 5 5 3 0]
-func findA(program []int, ans int, seq []int) (int, bool, []int) {
+func (s *Stack) push(i Item) {
+	*s = append(*s, i)
+}
+func (s *Stack) pop() Item {
+	old := *s
+	i := old[len(old)-1]
+	*s = old[:len(old)-1]
+	return i
+}
+
+func DFSModelFunc(m *model, program []int) func() (int, bool) {
+	m.stack = Stack{}
+	m.stack.push(Item{answer: 0, idx: len(program) - 1})
+	m.seq = program
+	answer := math.MaxInt
+
+	return func() (int, bool) {
+		log.Printf("Enter DFS")
+
+		if len(m.stack) == 0 {
+			log.Printf("Should only happen when called after finished?!")
+			return -1, false
+		}
+		curr := m.stack.pop()
+
+		// Check "done". (correct node, etc)
+		if curr.idx < 0 {
+			// HACK: This check shouldn't be needed, since we search from low to high
+			if curr.answer < answer {
+				answer = curr.answer
+			}
+			m.reg[A] = answer
+			return answer, true
+		}
+
+		// Work on current node.
+		for t := range 8 {
+			// Init A register
+			m.reg[A] = (curr.answer << 3) + t // old answer (shifted to correct pos) + new
+			if m.reg[A] == 0 {
+				continue // NOTE: Needed to skip if 0 in the start, becasue 0 << 3 | 0 -> 0
+			}
+			m.dirty[A] = true
+
+			m.codeFns[m.pc]() // b := a % 8
+			m.codeFns[m.pc]() // b = b ^ 3
+			m.codeFns[m.pc]() // c := a >> b
+			m.codeFns[m.pc]() // b = b ^ c
+			m.codeFns[m.pc]() // b = b ^ 3
+
+			if m.reg[B]%8 == program[curr.idx] {
+				m.stack.push(Item{answer: m.reg[A], idx: curr.idx - 1})
+			}
+			m.pc = 0
+		}
+
+		return -1, true
+	}
+}
+
+func DFSFunc(program []int) func() (int, bool) {
+	stack := Stack{}
+	stack.push(Item{answer: 0, idx: len(program) - 1})
+	answer := math.MaxInt
+
+	return func() (int, bool) {
+		if len(stack) == 0 {
+			return answer, false
+		}
+		// for len(stack) > 0 {
+		curr := stack.pop()
+
+		// Check "done". (correct node, etc)
+		if curr.idx < 0 {
+			println("New answer:", curr.answer)
+			// HACK: This check shouldn't be needed, since we search from low to high
+			if curr.answer < answer {
+				answer = curr.answer
+			}
+			return answer, false
+		}
+
+		// Work on current node.
+		for t := range 8 {
+			// Init A register
+			a := (curr.answer << 3) + t // old answer (shifted to correct pos) + new
+			if a == 0 {
+				continue // NOTE: Needed to skip if 0 in the start, becasue 0 << 3 | 0 -> 0
+			}
+
+			//---Run rogram---
+			b := a % 8
+			b = b ^ 3
+			c := a >> b
+			b = b ^ c
+			b = b ^ 3
+			//----------------
+
+			// Find edges to new nodes (eg. neighbours)
+			if b%8 == program[curr.idx] {
+				stack.push(Item{answer: a, idx: curr.idx - 1})
+			}
+		}
+		return answer, true
+	}
+	// return answer
+}
+
+func findDFS(program []int) int {
+	stack := Stack{}
+	stack.push(Item{answer: 0, idx: len(program) - 1})
+	answer := math.MaxInt
+
+	for len(stack) > 0 {
+		curr := stack.pop()
+
+		// Check "done". (correct node, etc)
+		if curr.idx < 0 {
+			println("New answer:", curr.answer)
+			// HACK: This check shouldn't be needed, since we search from low to high
+			if curr.answer < answer {
+				answer = curr.answer
+			}
+			break
+		}
+
+		// Work on current node.
+		for t := range 8 {
+			// Init A register
+			a := (curr.answer << 3) + t // old answer (shifted to correct pos) + new
+			if a == 0 {
+				continue // NOTE: Needed to skip if 0 in the start, becasue 0 << 3 | 0 -> 0
+			}
+
+			//---Run rogram---
+			b := a % 8
+			b = b ^ 3
+			c := a >> b
+			b = b ^ c
+			b = b ^ 3
+			//----------------
+
+			// Find edges to new nodes (eg. neighbours)
+			if b%8 == program[curr.idx] {
+				stack.push(Item{answer: a, idx: curr.idx - 1})
+			}
+		}
+	}
+	return answer
+}
+
+func findRec(program []int, ans int) (int, bool) {
 	if len(program) == 0 {
-		return ans, true, seq // NOTE: Needed to shift up one last time, (probably due to the the 0 in the start)
+		return ans, true
 	}
 	k := len(program) - 1
 	for t := range 8 {
 		// Init A register
 		a := (ans << 3) + t // old answer (shifted to correct pos) + new
 		if a == 0 {
-			continue // Becasue 0 == 0<<3
+			continue // NOTE: Needed to skip if 0 in the start, becasue 0 << 3 | 0 -> 0
 		}
 		//---Run rogram---
 		b := a % 8
@@ -73,16 +210,15 @@ func findA(program []int, ans int, seq []int) (int, bool, []int) {
 		// out b % 8, becomes this comparison
 		if b%8 == program[k] {
 			// If we found a solution for program[k], call recursively, with rest of program[:k-1] and a as the answer
-			sub, ok, candidate := findA(program[:k], a, append(seq, t))
+			sub, ok := findRec(program[:k], a)
 			if ok {
 				// If we found a solution, return it
-				return sub, true, candidate
+				return sub, true
 			}
 		}
 	} // jp 0, has the considion as the functions base condition
-	return 0, false, nil // The 0 (zero) will be disregared from the caller
+	return 0, false
 }
-
 func rotateRight(sequence []int) []int {
 	j := len(sequence) - 1
 	l, r := sequence[:j], sequence[j:]
@@ -108,9 +244,4 @@ func convertBase8SequnceToBase10(sequence []int) int {
 		res = res*8 + s
 	}
 	return res
-}
-func (m *model) restartWith(seq []int) {
-	m.reset()
-	m.reg[A] = convertBase8SequnceToBase10(seq)
-	m.testSequence = seq
 }

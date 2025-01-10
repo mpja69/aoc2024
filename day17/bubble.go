@@ -21,50 +21,34 @@ type Register struct {
 }
 
 func (m model) RegStrings() [][]string {
-	if m.decimal {
-		return [][]string{
-			{fmt.Sprintf("A: %d", m.reg[A])},
-			{fmt.Sprintf("B: %d", m.reg[B])},
-			{fmt.Sprintf("C: %d", m.reg[C])},
-		}
-	} else {
-		return [][]string{
-			{fmt.Sprintf("A: %o", m.reg[A])},
-			{fmt.Sprintf("B: %o", m.reg[B])},
-			{fmt.Sprintf("C: %o", m.reg[C])},
-		}
-
+	f := map[bool]string{true: "%d", false: "%o"}
+	return [][]string{
+		{fmt.Sprintf("A: "+f[m.dec], m.reg[A])},
+		{fmt.Sprintf("B: "+f[m.dec], m.reg[B])},
+		{fmt.Sprintf("C: "+f[m.dec], m.reg[C])},
 	}
 }
 
-// func NewModel(a, b, c int, prog []string, codeFns, stringFns []func(), src []string) *model {
-// 	return &model{
-// 		reg:       [3]int{a, b, c},
-// 		dirty:     [3]bool{},
-// 		inputProg: strings.Join(prog, ","),
-// 		codeFns:   codeFns,
-// 		stringFns: stringFns,
-// 		src:       src,
-// 		length:    len(codeFns),
-// 	}
-// }
-
-func (m *model) reset() {
-	m.reg = [3]int{}
-	m.dirty = [3]bool{}
-	m.pc = 0
-	m.output = []string{}
-	m.testSequence = []int{}
-	m.newOutput = -1
+func (m model) StackStrings() [][]string {
+	f := map[bool]string{true: "%d", false: "%o"}
+	str := [][]string{}
+	for _, i := range m.stack {
+		str = append(str, []string{fmt.Sprintf(f[m.dec], i.answer), fmt.Sprintf("%v%v", m.seq[:i.idx+1], m.seq[i.idx+1:])})
+		// tIO.Row("test", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(m.testSequence)), ","), "[]"))
+	}
+	return str
 }
 
 type model struct {
+	next           func() (int, bool)
+	hasNext        bool
+	stack          Stack
+	seq            []int           // The slice of program being used to find settings of the A register
 	reg            [3]int          // Registers
 	dirty          [3]bool         // Dirty flags for the registers
-	decimal        bool            // true if octal, otherwise decimal
+	dec            bool            // true if octal, otherwise decimal
 	pc             int             // Program Counter
 	output         []string        // A slice of the output
-	testSequence   []int           // The slice that setting the A register
 	newOutput      int             // Latest output
 	inputProg      string          // Comma separated string of operations
 	currOpString   string          // The string representation och the next operation
@@ -72,10 +56,11 @@ type model struct {
 	stringFns      []func()        // The functions that generate the the currOpString
 	codeFns        []func()        // The operations as functions (closures with each operand)
 	src            []string        // Disassembled source code
-	NextCmd        tea.Cmd         // Bubbletea Command for running Next operation
+	StepCmd        tea.Cmd         // Bubbletea Command for step one operation
 	OnceCmd        tea.Cmd         // Bubbletea Command for running all operation ONCE
 	AllCmd         tea.Cmd         // Bubbletea Command for running All operations
-	StringCmd      tea.Cmd         // Bubbletea Command for rendering the next (next) operation
+	StringCmd      tea.Cmd         // Bubbletea Command for visualizing the next operation
+	NextCmd        tea.Cmd         // Bubbletea Command for finding next input
 	codeEnumerator list.Enumerator // Bubbletea
 	codeStyle      list.StyleFunc  // Bubbletea
 	RegStyle       table.StyleFunc // Bubbletea
@@ -83,9 +68,30 @@ type model struct {
 }
 type pcUpdatedMsg int
 type stringMsg string
+type findMsg bool
 
 func (m *model) Init() tea.Cmd {
 	m.NextCmd = func() tea.Msg {
+		tmp := 0
+		if m.hasNext {
+			m.dirty = [3]bool{}
+			tmp, m.hasNext = m.next()
+			if tmp > 0 {
+				m.newOutput = tmp
+			}
+			if m.hasNext == false {
+				m.reg[A] = m.newOutput
+				m.stack.push(Item{m.newOutput, -1})
+				m.dirty[A] = true
+				m.reg[B] = 0
+				m.reg[C] = 0
+				m.newOutput = -1
+			}
+		}
+		return findMsg(m.hasNext)
+	}
+
+	m.StepCmd = func() tea.Msg {
 		if m.pc < m.length {
 			m.dirty = [3]bool{}
 			m.newOutput = -1
@@ -146,17 +152,25 @@ func (m *model) Init() tea.Cmd {
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q":
+		if msg.String() == "q" {
 			return m, tea.Quit
-		case "n":
-			return m, m.NextCmd
-		case "a":
-			return m, m.AllCmd
-		case "o":
-			return m, m.OnceCmd
-		case "d":
-			m.decimal = !m.decimal
+		}
+		if msg.String() == "d" {
+			m.dec = !m.dec
+		}
+		if m.hasNext {
+			if msg.String() == "n" {
+				return m, m.NextCmd
+			}
+		} else {
+			switch msg.String() {
+			case "s":
+				return m, m.StepCmd
+			case "a":
+				return m, m.AllCmd
+			case "o":
+				return m, m.OnceCmd
+			}
 		}
 	case pcUpdatedMsg:
 		if int(msg) >= m.length {
@@ -169,15 +183,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) View() string {
+	tStack := table.New().Rows(m.StackStrings()...).Width(80)
+	tStack.Headers("Stack")
 	tReg := table.New().Rows(m.RegStrings()...).StyleFunc(m.RegStyle).Width(40)
-	if m.decimal {
-		tReg.Headers("Registers - Decimal")
-	} else {
-		tReg.Headers("Registers - Octal")
-	}
+	tReg.Headers("Registers")
 
 	tIO := table.New().Headers("I/0", "").Width(40)
-	// tIO.Row("test", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(m.testSequence)), ","), "[]"))
 	if m.newOutput < 0 {
 		tIO.Row("new", "")
 	} else {
@@ -194,11 +205,15 @@ func (m *model) View() string {
 	}
 
 	s := lipgloss.JoinHorizontal(lipgloss.Top, tReg.Render(), tIO.Render())
-	s = lipgloss.JoinVertical(lipgloss.Center, s, tExec.Render())
+	s = lipgloss.JoinVertical(lipgloss.Center, tStack.Render(), s, tExec.Render())
 
 	s += "\n\n" + m.srcList.String()
 
-	s += "\n\n\nControls: [N]ext  [A]ll  [Q]uit\n\n"
+	if m.hasNext {
+		s += "\n\n\nControls: [N]ext [D]ec/Oct [Q]uit\n\n"
+	} else {
+		s += "\n\n\nControls: [S]tep [O]nce [A]ll [D]ec/Oct [Q]uit\n\n"
+	}
 	return s
 }
 
