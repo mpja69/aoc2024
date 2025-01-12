@@ -17,5 +17,5 @@
 14. Easy. Robots moving speed+pos. Weird 2nd: looking for christmas tree 
 15. Grid. BFS. BubbleTea for visualization.
 16. Hard. Grid. Pathfinding. BFS. Dijkstra + backtracking
-17. Simulate a machine. Reverse engineering program
-
+17. Simulate a machine. Bubbletea. DFS instead of recursion
+18. BFS. Binary search. (Reader and Fscanf)

@@ -24,8 +24,6 @@ const (
 
 type tokenType int
 
-type stateFn func(p *Parser) stateFn
-
 func ParserNew(str string) (*Parser, chan Token) {
 	p := &Parser{
 		input:  str,
