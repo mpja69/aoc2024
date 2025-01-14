@@ -14,53 +14,54 @@ func main() {
 	availablePatterns := strings.Split(wantedPatterns[0], ", ")
 	wantedPatterns = wantedPatterns[2:]
 
-	fmt.Printf("P1: (340) \n")
+	fmt.Printf("P1: Finding how many of the patterns that can be constructed (340) \n")
 	p1(availablePatterns, wantedPatterns)
-	fmt.Printf("P2:(717561822679428)\n")
+	fmt.Printf("P2: Finding how many ways the patterns can be constructed (717561822679428)\n")
 	p2(availablePatterns, wantedPatterns)
 }
 
 func p1(available, wanted []string) {
+	// Top-Down approach
 	memo := map[string]bool{}
-	resRec := 0
-	resDP := 0
+	result := 0
 	stopTimer := startTimer()
 	for _, pattern := range wanted {
-		if canConstructRec(pattern, available, memo) {
-			resRec++
+		if canConstructTD(pattern, available, memo) {
+			result++
 		}
 	}
-	fmt.Printf("P1: Recusrsive solution: %d, %v\n", resRec, stopTimer())
+	fmt.Printf("P1: Top-Down solution:  %d, %v\n", result, stopTimer())
+	// Bottom-Up approach
+	result = 0
 	stopTimer = startTimer()
 	for _, pattern := range wanted {
-		if canConstructDP(pattern, available) {
-			resDP++
+		if canConstructBU(pattern, available) {
+			result++
 		}
 	}
-	fmt.Printf("P1: Table solution:      %d, %v\n", resDP, stopTimer())
+	fmt.Printf("P1: Bottom-Up solution: %d, %v\n", result, stopTimer())
 }
 
 func p2(available, wanted []string) {
+	// Top-Down approach
 	memo := map[string]int{}
-	resRec := 0
-	resDP := 0
+	result := 0
 	stopTimer := startTimer()
 	for _, pattern := range wanted {
-		resRec += countConstructRec(pattern, available, memo)
+		result += countConstructTD(pattern, available, memo)
 	}
-	fmt.Printf("P2: Recusrsive solution: %d, %v\n", resRec, stopTimer())
-
+	fmt.Printf("P2: Top-Down solution:  %d, %v\n", result, stopTimer())
+	// Bottom-Up approach
+	result = 0
 	stopTimer = startTimer()
 	for _, pattern := range wanted {
-		resDP += countConstructDP(pattern, available)
+		result += countConstructBU(pattern, available)
 	}
-	fmt.Printf("P2: Table solution:      %d, %v\n", resDP, stopTimer())
+	fmt.Printf("P2: Bottom-Up solution: %d, %v\n", result, stopTimer())
 }
 
-// Dynamic programming with a table
-// Time complexity: O(m^2*n), where m is target length, and n is the length of the word bank
-// Space complexity: O(m)
-func canConstructDP(target string, wordBank []string) bool {
+// Bottom-Up for canConstruct
+func canConstructBU(target string, wordBank []string) bool {
 	table := make([]bool, len(target)+1) // Table represent how much of the word that can be built...up to (not including) each position
 	table[0] = true                      // The empty string ("") CAN be built -> true in first position
 
@@ -76,8 +77,8 @@ func canConstructDP(target string, wordBank []string) bool {
 	return table[len(target)]
 }
 
-// Like canConstruct, but counting and adding up all ways the target can be constructed
-func countConstructDP(target string, wordBank []string) int {
+// Bottom-Up for countConstruct
+func countConstructBU(target string, wordBank []string) int {
 	table := make([]int, len(target)+1)
 	table[0] = 1
 
@@ -93,7 +94,8 @@ func countConstructDP(target string, wordBank []string) int {
 	return table[len(target)]
 }
 
-func canConstructRec(target string, wordBank []string, memo map[string]bool) bool {
+// Top-Down approach to canConstruct
+func canConstructTD(target string, wordBank []string, memo map[string]bool) bool {
 	if len(target) == 0 {
 		return true
 	}
@@ -102,7 +104,7 @@ func canConstructRec(target string, wordBank []string, memo map[string]bool) boo
 	}
 	for _, word := range wordBank {
 		if strings.HasPrefix(target, word) {
-			if canConstructRec(target[len(word):], wordBank, memo) {
+			if canConstructTD(target[len(word):], wordBank, memo) {
 				memo[target] = true
 				return true
 			}
@@ -111,7 +113,8 @@ func canConstructRec(target string, wordBank []string, memo map[string]bool) boo
 	return false
 }
 
-func countConstructRec(target string, wordBank []string, memo map[string]int) int {
+// Top-Down approach to countConstruct
+func countConstructTD(target string, wordBank []string, memo map[string]int) int {
 	if len(target) == 0 {
 		return 1
 	}
@@ -121,14 +124,14 @@ func countConstructRec(target string, wordBank []string, memo map[string]int) in
 	val := 0
 	for _, word := range wordBank {
 		if strings.HasPrefix(target, word) {
-			val += countConstructRec(target[len(word):], wordBank, memo)
+			val += countConstructTD(target[len(word):], wordBank, memo)
 		}
 	}
 	memo[target] = val
 	return val
 }
 
-// Starts a timer and return a function that returns the elapsed time.
+// Starts a timer. And return a function that returns the elapsed time.
 func startTimer() func() time.Duration {
 	t0 := time.Now()
 	return func() time.Duration {
