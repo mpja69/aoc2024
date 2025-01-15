@@ -20,3 +20,4 @@
 17. Simulate a machine. Bubbletea. DFS instead of recursion
 18. BFS. Binary search. (Reader and Fscanf)
 19. Dynamic programming (with Top-Down amd Bottom-Up). Patterns used: "canConstruct" and "countConstruct"
+20. Grid. Used maps for representing this. BFS
