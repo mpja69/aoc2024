@@ -10,10 +10,12 @@ type (
 	Sequence = types.Sequence
 )
 
-type AlphaNumSymbol string
-type AlphaNumSequence string
+// TODO: Kanske borde alla symboler var typade till byte (eller rune)?!
+type AlphaNumSymbol byte
+type AlphaNumSequence []byte
 
 type Numpad struct {
+	data     []byte
 	current  AlphaNumSymbol
 	layout   [][]byte
 	keys     []AlphaNumSymbol
@@ -22,10 +24,10 @@ type Numpad struct {
 	// pos2key  map[P]AlphaNumSymbol
 }
 
-func New() *Numpad {
-	np := &Numpad{}
-	np.current = "A"
-	np.keys = []AlphaNumSymbol{"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "A"}
+func New(data []byte) *Numpad {
+	np := &Numpad{data: data}
+	np.current = 'A'
+	np.keys = []AlphaNumSymbol{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'A'}
 	np.layout = [][]byte{
 		{0, 0, 0, 0, 0},
 		{0, '7', '8', '9', 0},
@@ -39,28 +41,32 @@ func New() *Numpad {
 
 	return np
 }
-
-// HACK: What is the best way to ensure that the given string is just 1 alhpanumeric char? (Is it even necessary?!)
-func (np *Numpad) MoveTo(nbr AlphaNumSymbol) Sequence {
-	if len(nbr) != 1 {
-		panic("AlphaNumSymbol longer than 1: " + nbr)
+func (np *Numpad) Read(p []byte) (int, error) {
+	i := 0
+	for _, b := range np.data {
+		if b == 10 {
+			p[i] = b
+			i++
+		} else {
+			i += copy(p[i:], []byte(np.Press(AlphaNumSymbol(b))))
+		}
 	}
-	if !((nbr[0] >= '0' && nbr[0] <= '9') || nbr[0] == 'A') {
-		panic("Not an AlphaNumSymbol: " + nbr)
-	}
-	seq := np.move2seq[Move{np.current, nbr}]
-	np.current = nbr
+	return i, nil
+}
+func (np *Numpad) Press(key AlphaNumSymbol) Sequence {
+	seq := np.MoveTo(key)
+	seq += "A"
 	return seq
 }
 
-func (np *Numpad) PeekTo(nbr AlphaNumSymbol) Sequence {
-	if len(nbr) != 1 {
-		panic("AlphaNumSymbol longer than 1: " + nbr)
-	}
-	if !((nbr[0] >= '0' && nbr[0] <= '9') || nbr[0] == 'A') {
-		panic("Not an AlphaNumSymbol: " + nbr)
-	}
-	seq := np.move2seq[Move{np.current, nbr}]
+func (np *Numpad) MoveTo(key AlphaNumSymbol) Sequence {
+	seq := np.PeekTo(key)
+	np.current = key
+	return seq
+}
+
+func (np *Numpad) PeekTo(key AlphaNumSymbol) Sequence {
+	seq := np.move2seq[Move{np.current, key}]
 	return seq
 }
 
