@@ -22,12 +22,12 @@ func main() {
 	p2(lines)
 }
 
-type P struct {
+type Pair struct {
 	a, b byte
 }
 
-var dirSeqs map[P][]keypad.Sequence
-var dirLengths map[P]int
+var dirSeqs map[Pair][]keypad.Sequence
+var dirLengths map[Pair]int
 
 func p2(lines []string) {
 	res := 0
@@ -35,13 +35,13 @@ func p2(lines []string) {
 	// Create the memoization cache map, (for dir-layout), and fill level 1 with values
 	dp := keypad.NewKeypad(keypad.DirectionLayout)
 	cache = map[seqItem]int{}
-	dirSeqs = map[P][]keypad.Sequence{}
-	dirLengths = map[P]int{}
+	dirSeqs = map[Pair][]keypad.Sequence{}
+	dirLengths = map[Pair]int{}
 	for k, v := range dp.Move2seq {
 		a := byte(k.From)
 		b := byte(k.To)
-		dirSeqs[P{a, b}] = v
-		dirLengths[P{a, b}] = len(v[0])
+		dirSeqs[Pair{a, b}] = v
+		dirLengths[Pair{a, b}] = len(v[0])
 		// cache[item{a, b, 1}] = len(v[0])
 	}
 
@@ -53,18 +53,18 @@ func p2(lines []string) {
 		// ...and call the recursive function for each seuence
 		for _, seq := range dirSequences {
 			// ...and sum up the shortest one
-			length = min(length, solve(seq, 25, dp))
+			length = min(length, solve(seq, 25))
 		}
 		res += length * value(line)
 	}
 	fmt.Println("P2 (264518225304496):", res)
 }
 
-func pairsFromSeq(seq string) func(func(P) bool) {
+func pairsFromSeq(seq string) func(func(Pair) bool) {
 	a := byte('A')
-	return func(yield func(P) bool) {
+	return func(yield func(Pair) bool) {
 		for _, b := range []byte(seq) {
-			if !yield(P{a, b}) {
+			if !yield(Pair{a, b}) {
 				return
 			}
 			a = b
@@ -80,7 +80,7 @@ type seqItem struct {
 var cache map[seqItem]int
 
 // Depth First approach - for a sequence (string) at a time
-func solve(seq string, level int, kp *keypad.Keypad) int {
+func solve(seq string, level int) int {
 	if level == 1 {
 		// Base case: On level 1, we use the pre-computed map, summed over the sequence
 		length := 0
@@ -99,7 +99,7 @@ func solve(seq string, level int, kp *keypad.Keypad) int {
 	for p := range pairsFromSeq(seq) {
 		minLength := math.MaxInt
 		for _, subSeq := range dirSeqs[p] {
-			minLength = min(minLength, solve(string(subSeq), level-1, kp))
+			minLength = min(minLength, solve(string(subSeq), level-1))
 		}
 		length += minLength
 	}

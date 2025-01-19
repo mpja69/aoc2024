@@ -77,7 +77,6 @@ type Keypad struct {
 	keys     []Symbol            // The keys in this keypad -> To generate "moves" and move2seq map
 	Move2seq map[Move][]Sequence // Given a move -> Get a sequence of symbols
 	key2pos  map[Symbol]P
-	// pos2key  map[P]Symbol
 }
 
 // ==================== Keypad ======================
@@ -126,7 +125,6 @@ func (kp *Keypad) MoveTo(key Symbol) []Sequence {
 
 func (kp *Keypad) initKeyPosMaps() {
 	kp.key2pos = map[Symbol]P{}
-	// pos2key = map[P]Symbol{}
 	kp.keys = []Symbol{}
 
 	for r := range kp.layout {
@@ -136,7 +134,6 @@ func (kp *Keypad) initKeyPosMaps() {
 			if key != 0 {
 				kp.key2pos[Symbol(key)] = pos
 				kp.keys = append(kp.keys, Symbol(key))
-				// pos2key[pos] = Symbol(key)
 			}
 		}
 	}
@@ -198,10 +195,6 @@ func (kp *Keypad) getSeqFromPositions(start, end P) []Sequence {
 	}
 	return []Sequence{}
 }
-
-// func (kp *Keypad) validPos(p P) bool {
-// 	return kp.layout[p.R][p.C] != 0
-// }
 
 // ----------------- Util ---------------
 type P struct {

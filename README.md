@@ -21,3 +21,4 @@
 18. BFS. Binary search. (Reader and Fscanf)
 19. Dynamic programming (with Top-Down amd Bottom-Up). Patterns used: "canConstruct" and "countConstruct"
 20. Grid. Used maps for representing this. BFS
+21. Different grids. Many layers of grids. Recursion. Memoization. 
