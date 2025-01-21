@@ -78,10 +78,11 @@ And I think of all these ideas as **LAIR**
 _What problem are we trying to solve?_
 
 
->Example:
-The `main()` is responsible for starting everything and running the 2 parts of the day, (in advent of code). Maybe it's responsible for getting the data (if it's the sam for both parts).
+>**Example:**
 >
->The `Part1()` is responsible for solving "the high level problem" in part 1 and returning the answer.
+>- The `main()` is responsible for starting everything and running the 2 parts of the day, (in advent of code). Maybe it's responsible for getting the data (if it's the sam for both parts).
+>
+>- The `Part1()` is responsible for solving "the high level problem" in part 1 and returning the answer.
 >
 >Part 1 maybe needs other supporting functions, e.g. iterators, calculators, etc., or it could be data structures, structs with methods. 
 >And each of these support functionality should also be crafted to solve it's specific problem.

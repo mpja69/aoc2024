@@ -26,6 +26,7 @@ func p1() {
 	fmt.Printf("P1: %d\n", sum)
 }
 
+// Timing-decorater
 func timer(fn func()) func() {
 	return func() {
 		t := time.Now()
@@ -122,6 +123,7 @@ func readNumber(s string) func(func(int) bool) {
 
 }
 
+// Almost twice (2X) as fast!!
 func evolve(secret int) int {
 	secret = ((secret << 6) ^ secret) & 16777215
 	secret = ((secret >> 5) ^ secret) & 16777215
