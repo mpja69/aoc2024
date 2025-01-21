@@ -3,7 +3,7 @@
 ## Iterators
 Playing arouund with _Iterators_.
 
-The outer function is a "wrapper", (maybe can be called a "factory"). This wrapper function returns a function, a _closure_, which is an on is an _Iterator_.
+The outer function is a "wrapper", (it maybe can be called a "factory"??). This wrapper function returns a function, a _closure_, which is an on is an _Iterator_.
 
 We have a text file, where each line has a number. 
 The iterator reads line by line with `fmt.Fscanln`, and for each line produces an `integer`.of the number.
@@ -109,6 +109,7 @@ Aiming for clarity and simplicity.
 >- `evolve()`
 >- `RingBuffer`, with `.Write(int)` and `.Values()[4]int`
 >- `seen map[...]bool`
+>
 >-It's **not** about writing as little as possible, (in each function).
 >-It's **not** about making everything super abstract.
 >-It's **not** about that every support structure needs to be super general, and to be reused in other places.
