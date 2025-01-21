@@ -107,7 +107,7 @@ func readNumberIterator(s string) func(func(int) bool) {
 	if err != nil {
 		log.Fatal("readNumber(): ", err)
 	}
-	return func(yield func(int) bool) {
+	return func(yield func(val int) bool) {
 		defer f.Close()
 		val := 0
 		for _, err := fmt.Fscanln(f, &val); err != io.EOF; _, err = fmt.Fscanln(f, &val) {

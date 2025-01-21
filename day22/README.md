@@ -3,22 +3,26 @@
 ## Iterators
 Playing arouund with _Iterators_.
 
-The outer function is a "wrapper", (maybe can be called a "factory"). This wrapper function returns a function, a _closure_.
-The returned function is an _Iterator_.
+The outer function is a "wrapper", (maybe can be called a "factory"). This wrapper function returns a function, a _closure_, which is an on is an _Iterator_.
 
 We have a text file, where each line has a number. 
 The iterator reads line by line with `fmt.Fscanln`, and for each line produces an `integer`.of the number.
 
 
-So we don't have to 
+So we do **not** have to 
 - read the whole file into a `[]byte`
 - split the data into lines with `strings.Split(...)` into another `[]string`
-- loop over the lines and convert every line to `int` and store it in a `[]int`
-...and then loop over the integer slice to perform the actual task at hand.
+- loop over the lines and convert every line/string to an `int` and store it in a `[]int`
+...and then finally loop over the integer slice to perform the actual task at hand.
+
+Even if this example doesn't have so many lines of data to be read, and either way of solving it is just `O(n)`, (where `n` is the length of the file). It makes the code _clearer_! It becomes easier to tread and understand the _intention_ of the different parts.
+
+### Example code
+Pretty nifty. Takes a file name and scan each line into an `int`, on the fly, when you need it.
 
 
 ``` 
-func readNumber(s string) func(func(int) bool) {
+func readNumbers(s string) func(func(int) bool) {
 	f, err := os.Open(s)
 	if err != nil {
 		log.Fatal("readNumber(): ", err)
@@ -39,6 +43,13 @@ func readNumber(s string) func(func(int) bool) {
 
 }
 
+```
+
+The solving the actual problem at hand, just use the Iterator in a loop:
+```
+for num := range readNumbers("myfile") { 
+	... 
+}
 ```
 
 ### Another way
@@ -94,13 +105,16 @@ Aiming for clarity and simplicity.
 >
 >Part 1 maybe needs other supporting functions, e.g. iterators, calculators, etc., or it could be data structures, structs with methods. 
 >And each of these support functionality should also be crafted to solve it's specific problem.
+>- `readNumbers(string)`
 >- `evolve()`
 >- `RingBuffer`, with `.Write(int)` and `.Values()[4]int`
 >- `seen map[...]bool`
->-It's *not* about writing as little as possible, (in each function).
->-It's *not* about making everything super abstract.
->-It's *not* about that every support structure needs to be super general, and to be reused in other places.
+>-It's **not** about writing as little as possible, (in each function).
+>-It's **not** about making everything super abstract.
+>-It's **not** about that every support structure needs to be super general, and to be reused in other places.
 
 
 ## Process of trying/building stuff, high and low
+Finding the ritght Level of Abstraction and organizing the code, is _hard to think out beforehand_!
 
+The process of developing is **not**
