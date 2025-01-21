@@ -109,10 +109,11 @@ Aiming for clarity and simplicity.
 >- `evolve()`
 >- `RingBuffer`, with `.Write(int)` and `.Values()[4]int`
 >- `seen map[...]bool`
->
->-It's **not** about writing as little as possible, (in each function).
->-It's **not** about making everything super abstract.
->-It's **not** about that every support structure needs to be super general, and to be reused in other places.
+> 
+>What it's not:
+>- It's **not** about writing as little as possible, (in each function).
+>- It's **not** about making everything super abstract.
+>- It's **not** about that every support structure needs to be super general, and to be reused in other places.
 
 
 ## Process of trying/building stuff, high and low
