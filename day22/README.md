@@ -73,24 +73,34 @@ At the same time I also like the idea of "Locoality of Code". <!-- TODO: Primage
 
 And I think of all these ideas as **LAIR**
 
-#### LAIR - Level of Abstraction, Intention and/or Responsibilty
+## LAIR - Level of Abstraction, Intention and/or Responsibilty
 
 _What problem are we trying to solve?_
+
+Ask yourself that over and over, in different parts of the code.
+And split/organize the code accordingly.
+
+The goal is to get chunks of code that belongs together, and make sense to the "reader". (The "reader" is also yourself a week/month/year later.)
+
+Aiming for clarity and simplicity.
+
 
 
 >**Example:**
 >
->- The `main()` is responsible for starting everything and running the 2 parts of the day, (in advent of code). Maybe it's responsible for getting the data (if it's the sam for both parts).
+>- The `main()` is responsible for starting everything and running the 2 parts of the day, (in advent of code). Maybe it's responsible for getting the data (if it's the same for both parts).
 >
 >- The `Part1()` is responsible for solving "the high level problem" in part 1 and returning the answer.
 >
 >Part 1 maybe needs other supporting functions, e.g. iterators, calculators, etc., or it could be data structures, structs with methods. 
 >And each of these support functionality should also be crafted to solve it's specific problem.
->
->It's not about writing as little as possible.
->It's not about following "Clean Code" as Bible.
->It's not about that every other support structure needs to super general, and to be reused in other places.
+>- `evolve()`
+>- `RingBuffer`, with `.Write(int)` and `.Values()[4]int`
+>- `seen map[...]bool`
+>-It's *not* about writing as little as possible, (in each function).
+>-It's *not* about making everything super abstract.
+>-It's *not* about that every support structure needs to be super general, and to be reused in other places.
 
 
-#### Process of trying/building stuff, high and low
+## Process of trying/building stuff, high and low
 

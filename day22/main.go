@@ -16,7 +16,7 @@ func main() {
 }
 func p1() {
 	sum := 0
-	for secret := range readNumber("data.txt") {
+	for secret := range readNumberIterator("data.txt") {
 		for range 2000 {
 			secret = evolve(secret)
 		}
@@ -26,7 +26,7 @@ func p1() {
 	fmt.Printf("P1: %d\n", sum)
 }
 
-// Timing-decorater
+// Just for fun: A Timing-decorater
 func timer(fn func()) func() {
 	return func() {
 		t := time.Now()
@@ -41,7 +41,7 @@ func p2() {
 	all := map[Seq]int{}
 
 	// Loop over the secrets in the file
-	for secret := range readNumber("data.txt") {
+	for secret := range readNumberIterator("data.txt") {
 		seen := map[Seq]bool{}
 		buf := NewRingBuffer[int]()
 		lastPrice := 0
@@ -54,7 +54,7 @@ func p2() {
 			buf.Write(delta)
 			secret = evolve(secret)
 
-			seq, ok := buf.All()
+			seq, ok := buf.Values()
 			if !ok {
 				continue // Skip the first rounds, until the ring buffer is filled
 			}
@@ -89,7 +89,7 @@ func (rb *RingBuffer[T]) Write(val T) {
 	rb.idx = (rb.idx + 1) % len(rb.buf)
 	rb.touches++
 }
-func (rb *RingBuffer[T]) All() ([4]T, bool) {
+func (rb *RingBuffer[T]) Values() ([4]T, bool) {
 	if rb.touches < 4 {
 		return [4]T{}, false
 	}
@@ -102,7 +102,7 @@ func (rb *RingBuffer[T]) All() ([4]T, bool) {
 }
 
 // Iterator that reads a files of lines as numbers
-func readNumber(s string) func(func(int) bool) {
+func readNumberIterator(s string) func(func(int) bool) {
 	f, err := os.Open(s)
 	if err != nil {
 		log.Fatal("readNumber(): ", err)
@@ -130,6 +130,8 @@ func evolve(secret int) int {
 	secret = ((secret << 11) ^ secret) & 16777215
 	return secret
 }
+
+// The naive first version
 func evolve1(secret int) int {
 	secret = ((secret * 64) ^ secret) % 16777216
 	secret = ((secret / 32) ^ secret) % 16777216
