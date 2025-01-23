@@ -18,7 +18,7 @@ So we do **not** have to
 Even if this example doesn't have so many lines of data to be read, and either way of solving it is just `O(n)`, (where `n` is the length of the file). It makes the code _clearer_! It becomes easier to tread and understand the _intention_ of the different parts.
 
 ### Example code
-Pretty nifty. Takes a file name and scan each line into an `int`, on the fly, when you need it.
+Pretty nifty. Takes a file name and scans each line into an `int`, on the fly, when you need it.
 
 
 ``` 
@@ -45,7 +45,7 @@ func readNumbers(s string) func(func(int) bool) {
 
 ```
 
-The solving the actual problem at hand, just use the Iterator in a loop:
+When solving the "actual problem", just use the Iterator with `range` in a loop:
 ```
 for num := range readNumbers("myfile") { 
 	... 
@@ -53,7 +53,7 @@ for num := range readNumbers("myfile") {
 ```
 
 ### Another way
-The code inside the iterator could of course be used "on the fly" like this:
+The code inside the iterator could of course be used in the "actual problem loop" like this:
 
 ```
 func main()
@@ -107,16 +107,29 @@ Aiming for clarity and simplicity.
 >And each of these support functionality should also be crafted to solve it's specific problem.
 >- `readNumbers(string)`
 >- `evolve()`
->- `RingBuffer`, with `.Write(int)` and `.Values()[4]int`
+>- `RingBuffer`, with `.Write(int)` and `.Sequence()[4]int`
 >- `seen map[...]bool`
-> 
->What it's not:
->- It's **not** about writing as little as possible, (in each function).
->- It's **not** about making everything super abstract.
->- It's **not** about that every support structure needs to be super general, and to be reused in other places.
+ 
+
+What it's not:
+- It's **not** about writing as little as possible, (in each function).
+- It's **not** about making everything super abstract.
+- It's **not** about that every support structure needs to be super general, and to be reused in other places.
 
 
 ## Process of trying/building stuff, high and low
 Finding the ritght Level of Abstraction and organizing the code, is _hard to think out beforehand_!
 
-The process of developing is **not**
+The process of developing is **not** about trying to come up with the "correct" solution before you start typing code. 
+It's almost impossible to just "think" about the solution...and get correct.
+
+A good approach to the actual process is to jump betwwen different levels.
+- Draw out the highlevel concept. _What problem are you trying to solve?_ 
+	- What is the result we are after? 
+	- What do we have as input?
+	- What steps needs to be in between?
+- Just start coding.
+- Learn as you go.
+- Adapt to what you discover.
+
+

@@ -35,18 +35,18 @@ func timer(fn func()) func() {
 	}
 }
 
-type Seq [4]int
+// type Seq [4]int
 
 func p2() {
-	all := map[Seq]int{}
+	all := map[[4]int]int{}
 
 	// Loop over the secrets in the file
 	for secret := range readNumberIterator("data.txt") {
-		seen := map[Seq]bool{}
+		seen := map[[4]int]bool{}
 		buf := NewRingBuffer[int]()
 		lastPrice := 0
 
-		// Evolve 200o times, and store all ok sequences/prices
+		// Evolve 2000 times, and store all ok sequences/prices
 		for range 2000 {
 			price := secret % 10
 			delta := price - lastPrice
@@ -54,18 +54,18 @@ func p2() {
 			buf.Write(delta)
 			secret = evolve(secret)
 
-			seq, ok := buf.Values()
+			sequence, ok := buf.Sequence()
 			if !ok {
-				continue // Skip the first rounds, until the ring buffer is filled
+				continue // Skip the first 3 rounds, until the ring buffer is filled up
 			}
-			if seen[seq] {
+			if seen[sequence] {
 				continue // Only store the first occurance
 			}
-			seen[seq] = true
-			if _, ok := all[seq]; !ok {
-				all[seq] = 0
+			seen[sequence] = true
+			if _, ok := all[sequence]; !ok {
+				all[sequence] = 0
 			}
-			all[seq] += price
+			all[sequence] += price
 
 		}
 	}
@@ -89,11 +89,12 @@ func (rb *RingBuffer[T]) Write(val T) {
 	rb.idx = (rb.idx + 1) % len(rb.buf)
 	rb.touches++
 }
-func (rb *RingBuffer[T]) Values() ([4]T, bool) {
+func (rb *RingBuffer[T]) Sequence() ([4]T, bool) {
 	if rb.touches < 4 {
 		return [4]T{}, false
 	}
 	res := [4]T{}
+	// Return the values in the correct order, starting at idx
 	for i := range 4 {
 		res[i] = rb.buf[rb.idx]
 		rb.idx = (rb.idx + 1) % len(rb.buf)
