@@ -28,15 +28,28 @@ type Graph struct {
 }
 
 func main() {
+	p1()
+	// p2()
+}
 
-	graph := buildGraph("sample.txt")
-	// fmt.Println(len(graph))
-	// fmt.Println(graph)
+func p1() {
+	graph := buildGraph("data.txt")
 
 	res := allFullyConnectedPathsWithLength(graph, 3)
-	for _, sl := range res {
-		fmt.Println(sl)
+	lans := []string{}
+	for _, path := range res {
+		if hasNodeStartsWithT(path) {
+			lan := strings.Join(path, ",")
+			lans = append(lans, lan)
+		}
 	}
+	slices.Sort(lans)
+	i := 0
+	for _, lan := range lans {
+		fmt.Println(lan)
+		i++
+	}
+	println("P1: ", i)
 
 }
 
@@ -73,12 +86,11 @@ func getNodes(file string) []string {
 }
 
 type QI struct {
-	id  string
-	lan []string
-	// length int
+	id   string
+	path []string
 }
 
-// ======================= Vanligt mönster....med en yttre loop, ---------------->
+// ======================= Outer loop, ---------------->
 func allFullyConnectedPathsWithLength(graph map[string][]string, k int) [][]string {
 	seen := map[string]bool{} // Unique string representation of each sub graph -> To avoid duplicate sub graphs
 	res := [][]string{}       // A list if sub graphs
@@ -91,12 +103,7 @@ func allFullyConnectedPathsWithLength(graph map[string][]string, k int) [][]stri
 	return res
 }
 
-type StringSet map[string]bool
-type SetSet map[*StringSet]bool
-
-// -----------------------> ...som kallar den inre
-// 1. Starta på en nod
-// 2. Hitta alla _unika_ paths med längd K...
+// -----------------------> ...Inner BFS
 func exploreSubgraph(graph map[string][]string, k int, start string, seen map[string]bool) [][]string {
 	q := []QI{{start, []string{start}}}
 	res := [][]string{}
@@ -107,15 +114,11 @@ func exploreSubgraph(graph map[string][]string, k int, start string, seen map[st
 		curr := q[0]
 		q = q[1:]
 
-		// Avoid going back
-		// if visited[curr.id] {
-		// 	continue
-		// }
 		visited[curr.id] = true
 
 		// Goal: Length k...
-		if len(curr.lan) == k {
-			path := curr.lan
+		if len(curr.path) == k {
+			path := curr.path
 
 			// Avoid storing duplicate sub graphs
 			slices.Sort(path)
@@ -125,7 +128,7 @@ func exploreSubgraph(graph map[string][]string, k int, start string, seen map[st
 			}
 			seen[key] = true
 
-			// Avoid paths that are NOT inter-connected
+			// Avoid paths that are NOT inter-connected, (Could have been a simpler check for only 3 nodes)
 			if !allInterConnected(graph, path) {
 				continue
 			}
@@ -140,13 +143,22 @@ func exploreSubgraph(graph map[string][]string, k int, start string, seen map[st
 			if visited[n] {
 				continue
 			}
-			path := append(slices.Clone(curr.lan), n)
+			path := append(slices.Clone(curr.path), n)
 			q = append(q, QI{n, path})
 		}
 	}
 	return res
 }
 
+// ----------- Util------------
+func hasNodeStartsWithT(path []string) bool {
+	for _, node := range path {
+		if node[0] == 't' {
+			return true
+		}
+	}
+	return false
+}
 func allInterConnected(graph map[string][]string, path []string) bool {
 	// If any node is NOT connected to ALL other -> early return
 	for _, from := range path { // Loop over all FROM nodes:  [A,B,C]
@@ -155,7 +167,7 @@ func allInterConnected(graph map[string][]string, path []string) bool {
 			if from == to {
 				continue
 			}
-			// Check all other edges TODO: Om path var ett set gåt kollen fortare
+			// Check all other edges
 			if !slices.Contains(graph[from], to) {
 				return false
 			}
@@ -164,73 +176,6 @@ func allInterConnected(graph map[string][]string, path []string) bool {
 	return true
 }
 
-// =========== De vanliga mönstren på : , CANconstruct, COUNTconstruct, HOWconstruct...
-// ----------- På grafer: HASpath, ...
-func hasPath(graph map[string][]string, start string, end string, seen map[string]bool) bool {
-	if seen[start] {
-		return false
-	}
-	if start == end {
-		return true
-	}
-	seen[start] = true
-	for _, n := range graph[start] {
-		if hasPath(graph, n, end, seen) {
-			return true
-		}
-	}
-	return false
-}
-
-// === Exempel på hur man kan kombinera K element ur en lista, med "back tracking"
-func kCombinations[T any](list []T, k int) [][]T {
-	// TODO: Testa att använda en channel till att mata ut svaret.
-	var ans [][]T
-	var sol []T
-	var backtrack func(int)
-
-	if k < 0 || k > len(list) {
-		return [][]T{{}}
-	}
-
-	backtrack = func(n int) {
-		if len(sol) == k {
-			ans = append(ans, slices.Clone(sol))
-			return
-		}
-		left := len(list) - n
-		stillNeed := k - len(sol)
-		if left > stillNeed {
-			backtrack(n + 1)
-		}
-		sol = append(sol, list[n])
-		backtrack(n + 1)
-		sol = sol[:len(sol)-1]
-	}
-	backtrack(0)
-	return ans
-}
-
-// === Exempel på en rekursiv som finner alla kombinationer ur en lista, i olika längder
-func allCombinations(list []int) [][]int {
-	if len(list) == 0 {
-		return [][]int{{}} // NOTE: To create a list with an empty list [ [] ], initialize it "all" the way
-	}
-
-	first := list[0]
-	rest := list[1:]
-	combsRest := allCombinations(rest)
-	combsAll := [][]int{}
-
-	for _, comb := range combsRest {
-		oneCombWithFirst := append(slices.Clone(comb), first) // Skapa en temp-lista med den första och de andra
-		combsAll = append(combsAll, oneCombWithFirst)         // Lägg till listan i listan
-	}
-	return slices.Concat(combsRest, combsAll)
-}
-
-// ----------- Util------------
-// Iterator för att läsa in kanterna
 func readEdges(s string) iter.Seq2[string, string] {
 	f, err := os.Open(s)
 	if err != nil {
@@ -251,28 +196,3 @@ func readEdges(s string) iter.Seq2[string, string] {
 	}
 
 }
-
-// func foo() {
-// 	// List of all LANS (internally ordered)...5 computers in each
-// 	lans := [][]string{}
-// 	for _, node := range nodeList {
-// 		set := append(adjacencyList[node], node)
-// 		slices.Sort(set)
-// 		lans = append(lans, set)
-// 	}
-// 	fmt.Println("lans:", len(lans))
-//
-// 	// Set of LANS
-// 	lanSets := map[string][]string{}
-// 	for _, lan := range lans {
-// 		lanStr := strings.Join(lan, "")
-// 		lanSets[lanStr] = lan
-// 	}
-// 	fmt.Println("Set of lans:", len(lanSets))
-//
-// 	// lanSets := map[string]bool
-// 	for _, lan := range lanSets {
-// 		ans := kCombinations(lan, 3)
-// 		fmt.Println(ans)
-// 	}
-// }
