@@ -60,94 +60,77 @@ func buildGraph(file string) map[string][]string {
 		if _, ok := adjacencyList[a]; !ok {
 			adjacencyList[a] = []string{}
 		}
-		adjacencyList[a] = append(adjacencyList[a], b)
 		if _, ok := adjacencyList[b]; !ok {
 			adjacencyList[b] = []string{}
 		}
+		adjacencyList[a] = append(adjacencyList[a], b)
 		adjacencyList[b] = append(adjacencyList[b], a)
 	}
 	return adjacencyList
 }
 
-func getNodes(file string) []string {
-	nodeList := []string{}
-	seen := map[string]bool{}
-	for a, b := range readEdges(file) {
-		if !seen[a] {
-			nodeList = append(nodeList, a)
-			seen[a] = true
-		}
-		if !seen[b] {
-			nodeList = append(nodeList, b)
-			seen[b] = true
-		}
+// ======================= Outer loop, ---------------->
+func allFullyConnectedPathsWithLength(graph map[string][]string, k int) [][]string {
+	seenPath := map[string]bool{} // To avoid duplicate sub graphs, needs to live outside BFS
+	subgrapghs := [][]string{}    // A list if sub graphs
+
+	// Loop over all nodes
+	for node := range graph {
+		subgraphs := exploreSubgraph(graph, k, node, seenPath)
+		subgrapghs = append(subgrapghs, subgraphs...)
 	}
-	return nodeList
+	return subgrapghs
 }
 
-type QI struct {
+type Q struct {
 	id   string
 	path []string
 }
 
-// ======================= Outer loop, ---------------->
-func allFullyConnectedPathsWithLength(graph map[string][]string, k int) [][]string {
-	seen := map[string]bool{} // Unique string representation of each sub graph -> To avoid duplicate sub graphs
-	res := [][]string{}       // A list if sub graphs
-
-	// Loop over all nodes
-	for node := range graph {
-		subgraphs := exploreSubgraph(graph, k, node, seen)
-		res = append(res, subgraphs...)
-	}
-	return res
-}
-
 // -----------------------> ...Inner BFS
 func exploreSubgraph(graph map[string][]string, k int, start string, seen map[string]bool) [][]string {
-	q := []QI{{start, []string{start}}}
-	res := [][]string{}
-	visited := map[string]bool{}
+	q := []Q{{start, []string{start}}}
+	paths := [][]string{}
+	visitedNode := map[string]bool{}
 
 	for len(q) > 0 {
 		// Queue
 		curr := q[0]
 		q = q[1:]
 
-		visited[curr.id] = true
+		visitedNode[curr.id] = true
 
 		// Goal: Length k...
 		if len(curr.path) == k {
-			path := curr.path
 
-			// Avoid storing duplicate sub graphs
-			slices.Sort(path)
-			key := strings.Join(path, ",")
+			// Avoid storing duplicate paths
+			slices.Sort(curr.path)
+			key := strings.Join(curr.path, ",")
 			if seen[key] {
 				continue
 			}
 			seen[key] = true
 
 			// Avoid paths that are NOT inter-connected, (Could have been a simpler check for only 3 nodes)
-			if !allInterConnected(graph, path) {
+			if !allInterConnected(graph, curr.path) {
 				continue
 			}
 
-			// Add the path to the reult list
-			res = append(res, path)
+			// Add the path to the result
+			paths = append(paths, curr.path)
 			continue
 		}
 
 		// Neighbours
 		for _, n := range graph[curr.id] {
-			if visited[n] {
+			if visitedNode[n] {
 				continue
 			}
-			path := append(slices.Clone(curr.path), n)
-			q = append(q, QI{n, path})
+			path := append([]string{n}, curr.path...)
+			q = append(q, Q{n, path})
 		}
 	}
-	return res
+	return paths
 }
 
 // ----------- Util------------
