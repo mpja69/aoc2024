@@ -80,14 +80,23 @@ func buildMatrix(file string) map[string]map[string]bool {
 // ======================= Outer loop, ---------------->
 func longestFullyConnectedPath(graph map[string][]string, matrix map[string]map[string]bool) []string {
 	longestPathSoFar := []string{} // A list if sub graphs
+	accepted := map[string]bool{}
 
-	print("Length: ", len(graph))
+	print("Total: ", len(graph))
 	i := 0
 	// Loop over all nodes
 	for node := range graph {
+		if accepted[node] {
+			continue
+		}
 		print("  ", i)
 		i++
-		res := exploreLongestSubgraph(graph, node, matrix)
+
+		res := exploreLongestSubgraph(graph, node, matrix, accepted)
+
+		for _, r := range res {
+			accepted[r] = true
+		}
 		if len(res) > len(longestPathSoFar) {
 			longestPathSoFar = res
 		}
@@ -97,10 +106,10 @@ func longestFullyConnectedPath(graph map[string][]string, matrix map[string]map[
 
 // -----------------------> ...Inner BFS
 // Return the longest path, "starting" at start, where every node is interconnected
-func exploreLongestSubgraph(graph map[string][]string, start string, matrix map[string]map[string]bool) []string {
+func exploreLongestSubgraph(graph map[string][]string, start string, matrix map[string]map[string]bool, accepted map[string]bool) []string {
 	q := []Q{{start, []string{start}}}
 	longestPathsForStart := []string{}
-	seen := map[string]bool{} //start: true}
+	seen := map[string]bool{}
 
 	for len(q) > 0 {
 		// Queue
@@ -113,24 +122,22 @@ func exploreLongestSubgraph(graph map[string][]string, start string, matrix map[
 
 		// Goal
 		if len(curr.path) > len(longestPathsForStart) {
-			fmt.Printf("len Q: %d, len curr: %d, len longest: %d...", len(q), len(curr.path), len(longestPathsForStart))
 			longestPathsForStart = append([]string{}, curr.path...)
-			fmt.Println(longestPathsForStart)
-			seen[curr.id] = true
+			seen[curr.id] = true // ?? Not really sure about this check...would have wanted it outside??
 		}
 
 		// Neighbours
 		for _, n := range graph[curr.id] {
-			if slices.Contains(curr.path, n) { // Could use a map for performance?!
-				// if curr.seen[n] { // Could use a map for performance?!
-				continue
+			if accepted[n] {
+				continue // Skip if neighbour inside an already accepted solution
+			}
+			if slices.Contains(curr.path, n) {
+				continue // Skip if neighbour is with current path
 			}
 			if !isConnectedWithAll(graph, n, curr.path, matrix) {
 				continue
 			}
 			path := append([]string{n}, curr.path...)
-			// seen := maps.Clone(curr.seen)
-			// seen[n] = true
 			q = append(q, Q{n, path})
 
 		}
