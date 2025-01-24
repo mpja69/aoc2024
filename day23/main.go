@@ -10,30 +10,13 @@ import (
 	"strings"
 )
 
-// Implementation of Graph from the book
-type Node struct {
-	idx   int
-	edges map[int][]Edge
-	label string
-}
-
-type Edge struct {
-	from  int
-	to    int
-	weigt float64
-}
-
-type Graph struct {
-	nodes []Node
-}
-
 func main() {
-	p1()
-	// p2()
+	// p1("data.txt")
+	p2("data.txt")
 }
 
-func p1() {
-	graph := buildGraph("data.txt")
+func p1(file string) {
+	graph := buildGraph(file)
 
 	res := allFullyConnectedPathsWithLength(graph, 3)
 	lans := []string{}
@@ -49,12 +32,21 @@ func p1() {
 		fmt.Println(lan)
 		i++
 	}
-	println("P1: ", i)
+	println("P1 (1108): ", i)
 
 }
 
+func p2(file string) {
+	adjList := buildGraph(file)
+	matrix := buildMatrix(file)
+	path := longestFullyConnectedPath(adjList, matrix)
+	slices.Sort(path)
+	lan := strings.Join(path, ",")
+	println("P2 (ab,cp,ep,fj,fl,ij,in,ng,pl,qr,rx,va,vf): ", lan)
+}
+
 func buildGraph(file string) map[string][]string {
-	adjacencyList := map[string][]string{} // NOTE: Har man inte en adj-list i grafen ovan??
+	adjacencyList := map[string][]string{}
 
 	for a, b := range readEdges(file) {
 		if _, ok := adjacencyList[a]; !ok {
@@ -67,6 +59,85 @@ func buildGraph(file string) map[string][]string {
 		adjacencyList[b] = append(adjacencyList[b], a)
 	}
 	return adjacencyList
+}
+
+func buildMatrix(file string) map[string]map[string]bool {
+	adjacencyMap := map[string]map[string]bool{}
+
+	for a, b := range readEdges(file) {
+		if _, ok := adjacencyMap[a]; !ok {
+			adjacencyMap[a] = map[string]bool{}
+		}
+		if _, ok := adjacencyMap[b]; !ok {
+			adjacencyMap[b] = map[string]bool{}
+		}
+		adjacencyMap[a][b] = true
+		adjacencyMap[b][a] = true
+	}
+	return adjacencyMap
+}
+
+// ======================= Outer loop, ---------------->
+func longestFullyConnectedPath(graph map[string][]string, matrix map[string]map[string]bool) []string {
+	longestPathSoFar := []string{} // A list if sub graphs
+
+	print("Length: ", len(graph))
+	i := 0
+	// Loop over all nodes
+	for node := range graph {
+		print("  ", i)
+		i++
+		res := exploreLongestSubgraph(graph, node, matrix)
+		if len(res) > len(longestPathSoFar) {
+			longestPathSoFar = res
+		}
+	}
+	return longestPathSoFar
+}
+
+// -----------------------> ...Inner BFS
+// Return the longest path, "starting" at start, where every node is interconnected
+func exploreLongestSubgraph(graph map[string][]string, start string, matrix map[string]map[string]bool) []string {
+	q := []Q{{start, []string{start}}}
+	longestPathsForStart := []string{}
+	seen := map[string]bool{} //start: true}
+
+	for len(q) > 0 {
+		// Queue
+		curr := q[0]
+		q = q[1:]
+
+		if seen[curr.id] {
+			continue
+		}
+
+		// Goal
+		if len(curr.path) > len(longestPathsForStart) {
+			fmt.Printf("len Q: %d, len curr: %d, len longest: %d...", len(q), len(curr.path), len(longestPathsForStart))
+			longestPathsForStart = append([]string{}, curr.path...)
+			fmt.Println(longestPathsForStart)
+			seen[curr.id] = true
+		}
+
+		// Neighbours
+		for _, n := range graph[curr.id] {
+			if slices.Contains(curr.path, n) { // Could use a map for performance?!
+				// if curr.seen[n] { // Could use a map for performance?!
+				continue
+			}
+			if !isConnectedWithAll(graph, n, curr.path, matrix) {
+				continue
+			}
+			path := append([]string{n}, curr.path...)
+			// seen := maps.Clone(curr.seen)
+			// seen[n] = true
+			q = append(q, Q{n, path})
+
+		}
+
+	}
+
+	return longestPathsForStart
 }
 
 // ======================= Outer loop, ---------------->
@@ -141,6 +212,16 @@ func hasNodeStartsWithT(path []string) bool {
 		}
 	}
 	return false
+}
+func isConnectedWithAll(graph map[string][]string, node string, path []string, matrix map[string]map[string]bool) bool {
+	// If any node is NOT connected to ALL other -> early return
+	for _, pathNode := range path { // Loop over all nodes in the path so far
+		// Check all other edges
+		if !matrix[node][pathNode] {
+			return false
+		}
+	}
+	return true
 }
 func allInterConnected(graph map[string][]string, path []string) bool {
 	// If any node is NOT connected to ALL other -> early return

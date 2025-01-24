@@ -2,6 +2,23 @@ package main
 
 import "slices"
 
+// Implementation of Graph from the book
+type Node struct {
+	idx   int
+	edges map[int][]Edge
+	label string
+}
+
+type Edge struct {
+	from  int
+	to    int
+	weigt float64
+}
+
+type Graph struct {
+	nodes []Node
+}
+
 // =========== De vanliga mönstren på : , CANconstruct, COUNTconstruct, HOWconstruct...
 // ----------- På grafer: HASpath, ...
 func hasPath(graph map[string][]string, start string, end string, seen map[string]bool) bool {
