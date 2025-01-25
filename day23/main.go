@@ -1,10 +1,12 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"iter"
 	"log"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -12,7 +14,9 @@ import (
 
 func main() {
 	// p1("data.txt")
-	p2("data.txt")
+	p1Alternative("data.txt")
+	// p2("data.txt")
+	p2Alternative("data.txt")
 }
 
 func p1(file string) {
@@ -36,6 +40,44 @@ func p1(file string) {
 
 }
 
+// Hyper Neutrino
+func p1Alternative(file string) {
+	m := buildMatrix(file)
+
+	set := map[string]bool{}
+	// Loop over all nodes
+	for node1 := range m {
+
+		// Loop over its neighbours
+		for node2 := range m[node1] {
+			// Avoid going back
+			if node2 == node1 {
+				continue
+			}
+
+			// ...one more time
+			for node3 := range m[node2] {
+				// Avoid going back
+				if node3 == node1 {
+					continue
+				}
+
+				// Exclude loops thar are NOT closed
+				if !m[node1][node3] {
+					continue
+				}
+
+				if node1[0] == 't' || node2[0] == 't' || node3[0] == 't' {
+					lan := []string{node1, node2, node3}
+					slices.Sort(lan)
+					set[strings.Join(lan, ",")] = true
+				}
+			}
+		}
+	}
+	println("P1 (1108): ", len(set))
+}
+
 func p2(file string) {
 	adjList := buildGraph(file)
 	matrix := buildMatrix(file)
@@ -43,6 +85,51 @@ func p2(file string) {
 	slices.Sort(path)
 	lan := strings.Join(path, ",")
 	println("P2 (ab,cp,ep,fj,fl,ij,in,ng,pl,qr,rx,va,vf): ", lan)
+}
+
+// Hyper Neutrino
+func p2Alternative(file string) {
+	m := buildMatrix(file)
+	sets = map[string]bool{}
+	for start := range m {
+		recursiveSearch(m, start, map[string]bool{start: true})
+	}
+
+	length := func(a, b string) int {
+		return cmp.Compare(len(a), len(b))
+	}
+
+	max := slices.MaxFunc(slices.Collect(maps.Keys(sets)), length)
+
+	fmt.Printf("P2 (ab,cp,ep,fj,fl,ij,in,ng,pl,qr,rx,va,vf): %s (%d)\n", max, len(sets))
+}
+
+var sets map[string]bool
+
+func recursiveSearch(m map[string]map[string]bool, node string, req map[string]bool) {
+	key := strings.Join(slices.Sorted(maps.Keys(req)), ",")
+	if sets[key] {
+		return
+	}
+	sets[key] = true
+	for neighbour := range m[node] {
+		if req[neighbour] {
+			continue
+		}
+		all := true
+		for n := range req {
+			if !m[n][neighbour] {
+				all = false
+			}
+		}
+		if !all {
+			continue
+		}
+		cpy := maps.Clone(req)
+		cpy[neighbour] = true
+		recursiveSearch(m, neighbour, cpy)
+	}
+
 }
 
 func buildGraph(file string) map[string][]string {
@@ -220,6 +307,18 @@ func hasNodeStartsWithT(path []string) bool {
 	}
 	return false
 }
+
+// func allisConnected(node string, path map[string]bool, matrix map[string]map[string]bool) bool
+//
+//		// If any node is NOT connected to ALL other -> early return
+//		for _, pathNode := range path { // Loop over all nodes in the path so far
+//			// Check all other edges
+//			if !matrix[node][pathNode] {
+//				return false
+//			}
+//		}
+//		return true
+//	}
 func isConnectedWithAll(graph map[string][]string, node string, path []string, matrix map[string]map[string]bool) bool {
 	// If any node is NOT connected to ALL other -> early return
 	for _, pathNode := range path { // Loop over all nodes in the path so far
