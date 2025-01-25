@@ -116,13 +116,13 @@ func recursiveSearch(m map[string]map[string]bool, node string, req map[string]b
 		if req[neighbour] {
 			continue
 		}
-		all := true
+		anyNotConnected := false
 		for n := range req {
 			if !m[n][neighbour] {
-				all = false
+				anyNotConnected = true
 			}
 		}
-		if !all {
+		if anyNotConnected {
 			continue
 		}
 		cpy := maps.Clone(req)
