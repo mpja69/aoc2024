@@ -22,3 +22,7 @@
 19. Dynamic programming (with Top-Down amd Bottom-Up). Patterns used: "canConstruct" and "countConstruct"
 20. Grid. Used maps for representing this. BFS
 21. Different grids. Many layers of grids. Recursion. Memoization. 
+22. Number/secret evolution. Mapping prices and buyers. Brute force.
+23. Graph problem. Finding subgraphs.
+24. Part 1 just a recursive solver with memo. Part 2 really tricky: Analyze grid, then find the errors.
+25. Simple matching between lock and keys.
