@@ -45,14 +45,12 @@ func p1(inputStrings, exprStrings []string) {
 }
 
 // For a full adder we expect the following gates:
-//		An XOR of the input x and y of this bit
-//		An AND of the input x and y of this bit
-//		an XOR of (1) and the incoming carry (this should be the z for this bit)
-//		an AND of (1) and the incoming carry
-//		an OR of both ANDs (this is the output carry; it will be the input carry for the next bit).
-
-// Hyper Neutrino:	Skip the values and only analyze the grid...and how it relates to an adder, and find anomolies
-// Another idea:	Fill the input with with: zeros, ones and ordered mix. -> analyze output and find anomolies
+//
+//	An XOR of the input x and y of this bit
+//	An AND of the input x and y of this bit
+//	an XOR of (1) and the incoming carry (this should be the z for this bit)
+//	an AND of (1) and the incoming carry
+//	an OR of both ANDs (this is the output carry; it will be the input carry for the next bit).
 func p2(exprStrings []string) {
 
 	// Make a map of the expressions
@@ -62,16 +60,59 @@ func p2(exprStrings []string) {
 		expr[l[1]] = l[0]
 	}
 
-	getErrWires2(expr)
+	getWiresWithErrors2(exprStrings)
+}
+
+// From the python example
+func getWiresWithErrors2(expressions []string) { //map[string]string) {
+
+	wires := []string{}
+	for _, expr := range expressions {
+		a, op, b, out := parseExpression(expr)
+
+		// x != "XOR" and c[0] == 'z' and c != "z45"]
+		if op != "XOR" && out[0] == 'z' && out != "z45" {
+			wires = append(wires, out)
+		}
+
+		// x == "XOR" and all(d[0] not in 'xyz' for d in (a, b, c)) or
+		if op == "XOR" && a[0] != 'x' && a[0] != 'y' && out[0] != 'z' {
+			wires = append(wires, out)
+		}
+
+		// x == "AND" and not "x00" in (a, b) and r(c, 'XOR') or
+		if op == "AND" && a != "x00" && b != "x00" && connectedTo(out, "XOR") {
+			wires = append(wires, out)
+		}
+
+		// x == "XOR" and not "x00" in (a, b) and r(c, 'OR') or
+		if op == "XOR" && a != "x00" && b != "x00" && connectedTo(out, "OR") {
+			wires = append(wires, out)
+		}
+	}
+
+	slices.Sort(wires)
+	wires = slices.Compact(wires)
+	fmt.Println(strings.Join(wires, ","))
+}
+
+// Helper function - used in some if-stmts below
+// True if any expr exist, that has any input 'ab' AND the operation 'op'
+func connectedTo(ab, op string) bool {
+	for _, v := range expr {
+		a, x, b := parse(v)
+		if op == x && (ab == a || ab == b) {
+			return true
+		}
+	}
+	return false
 }
 
 // From the bash-example
-func getErrWires(expr map[string]string) {
-	// get a list where: output is  "> z", but no "XOR"-ops, and not the last bit...get JUST the output-names
+func getWiresWithErrors(expr map[string]string) {
+	// get the z-outputs, except the last one, which expr has not "XOR"
 	// $(cat input.txt | grep '> z' | grep -v 'XOR' | grep -v 'z45$' | awk '{print $5}')
 	// INFO: expr.filter(k[0]=='z').filter(k!="z45").filter("XOR" not in v).map(k)
-	// python x != "XOR" and c[0] == 'z' and c != "z45"]
-
 	CANDIDATE_1 := []string{}
 	for k, v := range expr {
 		if k[0] != 'z' {
@@ -87,7 +128,7 @@ func getErrWires(expr map[string]string) {
 	}
 	fmt.Println("1:", CANDIDATE_1)
 
-	// get a list of all "XOR"-ops, but not the lines starting with "x" or "y", and not output "> z"...get JUST the output-names
+	// get the the"non-z-outputs" of all  expr with "XOR" except expr with "x" or "y"
 	// CANDIDATE_2=$(cat input.txt | grep ' XOR ' | grep -v '^x' | grep -v '^y' | grep -v '> z' | awk '{print $5}')
 	// INFO: expr.filter(v[0]!='x').filter(v[0]!='y').filter("XOR" not in v).map(k)
 	// python x == "XOR" and all(d[0] not in 'xyz' for d in (a, b, c)) or
@@ -103,7 +144,7 @@ func getErrWires(expr map[string]string) {
 	}
 	fmt.Println("2:", CANDIDATE_2)
 
-	// get a list of "OR"-ops, but get JUST the 2 inputs, and sort them and remove duplilcates
+	// get a list of "OR"-ops, but get JUST the 2 inputs
 	// INPUT_OF_OR=$(cat input.txt | grep ' OR ' | awk '{ print $1; print $3 }' | sort -u)
 	INPUT_OF_OR := []string{}
 	for _, v := range expr {
@@ -114,7 +155,7 @@ func getErrWires(expr map[string]string) {
 		INPUT_OF_OR = append(INPUT_OF_OR, a, b)
 	}
 
-	// # Exclude the first "input"-"AND", but include all other "AND"-ops, ...get JUST the output-names (sort and remove duplicates)
+	// Find the outputs of expr that has "AND" but not the first inputs
 	// OUTPUT_OF_AND=$(cat input.txt | grep -v 'x00 AND y00' | grep ' AND ' | awk '{ print $5 }' | sort -u)
 	OUTPUT_OF_AND := []string{}
 	for k, v := range expr {
@@ -128,7 +169,7 @@ func getErrWires(expr map[string]string) {
 		OUTPUT_OF_AND = append(OUTPUT_OF_AND, k)
 	}
 
-	// # From all "OR"s and "AND"s, (replace WHITE with NEWLINE), get just the unique ones
+	// Take the items that exclusively exists in each list (of the above inputs and outputs)
 	// CANDIDATE_3=$(comm -3 <(echo $INPUT_OF_OR | tr ' ' '\n') <(echo $OUTPUT_OF_AND | tr ' ' '\n'))
 	// INFO: CANDIDATE_3 := XOR(INPUT_OF_OR, OUTPUT_OF_AND)
 	CANDIDATE_3 := []string{}
@@ -140,7 +181,7 @@ func getErrWires(expr map[string]string) {
 	}
 	fmt.Println("3:", CANDIDATE_3)
 
-	// # From all candidates: (replace WHITE with NL), sort and remove duplicates, then replace NL with ",", and remove last ","
+	// Finally take all candidates, sort them, and keep unique ones
 	// echo $CANDIDATE_1 $CANDIDATE_2 $CANDIDATE_3 | tr ' ' '\n' | sort -u | tr '\n' ',' | sed -e 's/,$//'
 	// INFO: allUniqueAndSorted(...)
 	wires := slices.Concat(CANDIDATE_1, CANDIDATE_2, CANDIDATE_3)
@@ -149,48 +190,6 @@ func getErrWires(expr map[string]string) {
 
 	fmt.Println(strings.Join(wires, ","))
 
-}
-
-// From the python example
-func getErrWires2(expr map[string]string) {
-
-	r := func(output, op string) bool {
-		for _, v := range expr {
-			a, x, b := parse(v)
-			if op == x && (output == a || output == b) {
-				return true
-			}
-		}
-		return false
-	}
-	wires := []string{}
-	for k, v := range expr {
-		a, op, b := parse(v)
-
-		// x != "XOR" and c[0] == 'z' and c != "z45"]
-		if op != "XOR" && k[0] == 'z' && k != "z45" {
-			wires = append(wires, k)
-		}
-
-		// x == "XOR" and all(d[0] not in 'xyz' for d in (a, b, c)) or
-		if op == "XOR" && v[0] != 'x' && v[0] != 'y' && k[0] != 'z' {
-			wires = append(wires, k)
-		}
-
-		// x == "AND" and not "x00" in (a, b) and r(c, 'XOR') or
-		if op == "AND" && a != "x00" && b != "x00" && r(k, "XOR") {
-			wires = append(wires, k)
-		}
-
-		// x == "XOR" and not "x00" in (a, b) and r(c, 'OR') or
-		if op == "XOR" && a != "x00" && b != "x00" && r(k, "OR") {
-			wires = append(wires, k)
-		}
-	}
-
-	slices.Sort(wires)
-	wires = slices.Compact(wires)
-	fmt.Println(strings.Join(wires, ","))
 }
 
 func solve(ans string) int {
@@ -219,7 +218,13 @@ func solve(ans string) int {
 	return cache[ans]
 }
 
-// func calulate(a, b string) int {}
+func parseExpression(e string) (a, op, b, out string) {
+	p := strings.Split(e, " -> ")
+	s := strings.Split(p[0], " ")
+	return s[0], s[1], s[2], p[1]
+
+}
+
 func parse(e string) (a, op, b string) {
 	s := strings.Split(e, " ")
 	return s[0], s[1], s[2]

@@ -18,5 +18,5 @@ OUTPUT_OF_AND=$(cat input.txt | grep -v 'x00 AND y00' | grep ' AND ' | awk '{ pr
 # From all "OR"s and "AND"s, (replace WHITE with NEWLINE), get just the unique ones
 CANDIDATE_3=$(comm -3 <(echo $INPUT_OF_OR | tr ' ' '\n') <(echo $OUTPUT_OF_AND | tr ' ' '\n'))
 
-# From all candidates: (replace WHITE with NL), sort and remove duplicates, then replace NL with ",", and regex-replace...??
+# From all candidates: (replace WHITE with NL), sort and remove duplicates, then replace NL with ",", and remove last ","
 echo $CANDIDATE_1 $CANDIDATE_2 $CANDIDATE_3 | tr ' ' '\n' | sort -u | tr '\n' ',' | sed -e 's/,$//'
